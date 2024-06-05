@@ -2,7 +2,7 @@
 
 ## what?
 
-This is a little tooling I put together so I could convert my FLAC music collection to ALAC or 256 AAC for the Apple iPod.
+This is a script I wrote to convert my FLAC music collection to ALAC and 256 AAC for my recently restored iPod.
 
 ## why?
 
