@@ -1,19 +1,5 @@
 # the `g` is silent.
 
-## how?
-
-### requirements
-
-- [ffmpeg](https://ffmpeg.org) must be installed, or at least located locally, such that you can specify with the path with `--ffmpeg` option. Uses your system path by default.
-- [node & npm](https://nodejs.org/en) is used to executed and run this tool; they must be installed such that the `npx` command succeeds. You may use [pnpx](https://pnpm.io/installation) instead, if you prefer.
-
-There are no other dependencies.
-
-```sh
-
-npx github:jmonster/music-monstger --input "/path/to/input" --output "/path/to/output" --ipod
-```
-
 ## what?
 
 This is a little tooling I put together so I could convert my FLAC music collection to ALAC or 256 AAC for the Apple iPod.
@@ -37,6 +23,20 @@ The `--ipod` flag is a shortcut for 256 AAC since that's typically the most prac
 ## performance
 
 Runs as many threads as your machine; it's very fast. With 10 cores, it's 10x faster than Apple Music at converting ALAC to AAC.
+
+## how?
+
+### requirements
+
+- [ffmpeg](https://ffmpeg.org) must be installed, or at least located locally, such that you can specify with the path with `--ffmpeg` option. Uses your system path by default.
+- [node & npm](https://nodejs.org/en) is used to executed and run this tool; they must be installed such that the `npx` command succeeds. You may use [pnpx](https://pnpm.io/installation) instead, if you prefer.
+
+There are no other dependencies.
+
+```sh
+
+npx github:jmonster/music-monstger --input "/path/to/input" --output "/path/to/output" --ipod
+```
 
 ## options
 
