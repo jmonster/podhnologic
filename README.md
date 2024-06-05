@@ -13,7 +13,7 @@ npx github:jmonster/music-monstger --input "/path/to/input" --output "/path/to/o
 # why?
 
 Apple's Music encoder is single-threaded and requires you to import your library into it before you can (very slowly) convert it.
-Since it's considered the best, we're going to use Apple's encoder if it's available on your system.
+Since it's considered the best, we're still going to use Apple's encoder if it's available on your system.
 
 # quality
 
@@ -35,15 +35,10 @@ Runs `X`-times faster than iTunes while utilizing the same encoder on a machine 
 
 ## requirements
 
-- [ffmpeg](https://ffmpeg.org) must be installed, or at least located locally, such that you can specify with the path with `--ffmpeg` option. Uses your system path by default
-- [node.js](https://nodejs.org) is used to executed and run this tool; they must be installed such that the `npx` command succeeds
+- [ffmpeg](https://ffmpeg.org) must be installed, or at least located locally, such that you can specify with the path via `--ffmpeg`.
+- [node.js](https://nodejs.org) is used to execute and run this tool
 
 There are no other dependencies.
-
-```sh
-
-npx github:jmonster/music-monstger --input "/path/to/input" --output "/path/to/output" --ipod
-```
 
 # options
 
@@ -55,4 +50,18 @@ node script.js \
   [--ipod] \
   [--ffmpeg /opt/homebrew/bin/ffmpeg] \
   [--dry-run]
+```
+
+### examples
+
+```sh
+npx github:jmonster/music-monstger --input "/path/to/input" --output "/path/to/output" --ipod
+```
+
+```sh
+npx github:jmonster/music-monstger --input "/path/to/input" --output "/path/to/output" --codec alac
+```
+
+```sh
+npx github:jmonster/music-monstger --input "/path/to/input" --output "/path/to/output" --ipod --ffmpeg "/opt/homebrew/bin/ffmpeg"
 ```
