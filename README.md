@@ -3,7 +3,7 @@
 ## how?
 
 ```sh
-pnpx github:jmonster/music-monstger --input "/path/to/input" --output "/path/to/output" --pod
+pnpx github:jmonster/music-monstger --input "/path/to/input" --output "/path/to/output" --ipod
 ```
 
 ## what?
