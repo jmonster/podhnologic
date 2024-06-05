@@ -1,3 +1,8 @@
+```sh
+
+npx github:jmonster/music-monstger --input "/path/to/input" --output "/path/to/output" --ipod
+```
+
 # what?
 
 - a tool to convert your music collection from A to B
@@ -22,7 +27,7 @@ The `--ipod` flag is shorthand for 256kbps AAC
 
 # performance
 
-Since iTunes is single-threaded, this script runs `X`-times faster while utilizing the same encoder on an machine with `X` cores
+Runs `X`-times faster than iTunes while utilizing the same encoder on a machine with `X` idle cores
 
 # how?
 
