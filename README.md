@@ -2,8 +2,14 @@
 
 ## how?
 
+### requirements
+
+- [ffmpeg](https://ffmpeg.org) must be installed, or at least located locally, such that you can specify with the path with `--ffmpeg` option. Uses your system path by default.
+- [node & npm](https://nodejs.org/en) is used to executed and run this tool; they must be installed such that the `npx` command succeeds. You may use [pnpx](https://pnpm.io/installation) instead, if you prefer.
+
 ```sh
-pnpx github:jmonster/music-monstger --input "/path/to/input" --output "/path/to/output" --ipod
+
+npx github:jmonster/music-monstger --input "/path/to/input" --output "/path/to/output" --ipod
 ```
 
 ## what?

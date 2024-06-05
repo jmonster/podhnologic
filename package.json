@@ -2,5 +2,5 @@
   "name": "music-monstger",
   "version": "0.0.1",
   "type": "module",
-  "bin": "index.js"
+  "bin": "index.mjs"
 }
