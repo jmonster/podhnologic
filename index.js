@@ -7,7 +7,6 @@ import { argv } from 'process'
 const inputDir = argv.includes('--input') ? argv[argv.indexOf('--input') + 1] : null
 const outputDir = argv.includes('--output') ? argv[argv.indexOf('--output') + 1] : null
 const ffmpegPath = argv.includes('--ffmpeg') ? argv[argv.indexOf('--ffmpeg') + 1] : 'ffmpeg'
-
 const dryRun = argv.includes('--dry-run')
 const ipod = argv.includes('--ipod')
 let codec = argv.includes('--codec') ? argv[argv.indexOf('--codec') + 1] : null
