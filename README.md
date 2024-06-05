@@ -10,7 +10,7 @@ Historically iTunes/Apple Music has been the preferred way to convert because of
 
 ## quality
 
-This tool is simple and opinionated; I assume you want the best possible quality. Therefore, we us the following values:
+This tool is simple and opinionated. I assume you want the best possible (but practical) quality.
 
 - `alac` & `flac`: lossless
 - `aac`: 256K w/Apple's encoder (where available)
@@ -18,7 +18,7 @@ This tool is simple and opinionated; I assume you want the best possible quality
 - `wav`: pcm_s16le (should we be doing something different?)
 - `mp3`: 320kbps
 
-The `--ipod` flag is a shortcut for 256 AAC since that's typically the most practical choice for an iPod
+The `--ipod` flag is a shortcut for 256 AAC since that's typically the best choice for an iPod
 
 ## performance
 
