@@ -2,16 +2,17 @@
 
 ## what?
 
-A tool to convert your music collection from A to B.
-Written for and used by me to convert my FLAC library to ALAC + 256 AAC.
+- a tool to convert your music collection from A to B.
+- written for and used by me to convert my FLAC library to ALAC + 256 AAC.
 
 ## why?
 
-Historically iTunes/Apple Music has been the preferred way to convert because of Apple's superior encoder. If you run this on macOS / if `aac_at` is available, then this will tool will also use Apple's encoder. You are not sacrificing quality using this.
+Apple's Music encoder is single-threaded and requires you to import your library into it before you can (very slowly) convert it.
+Since it's considered the best, we're going to use Apple's encoder if it's available on your system.
 
 ## quality
 
-This tool is simple and opinionated. I assume you want the best possible (but practical) quality.
+This tool is simple and opinionated. I assume you want the best possible but practical quality.
 
 - `alac` & `flac`: lossless
 - `aac`: 256K w/Apple's encoder (where available)
@@ -19,18 +20,18 @@ This tool is simple and opinionated. I assume you want the best possible (but pr
 - `wav`: pcm_s16le (should we be doing something different?)
 - `mp3`: 320kbps
 
-The `--ipod` flag is a shortcut for 256 AAC since that's typically the best choice for an iPod
+The `--ipod` flag is shorthand for 256kbps AAC
 
 ## performance
 
-Runs as many threads as your machine; it's very fast. With 10 cores, it's 10x faster than Apple Music at converting ALAC to AAC.
+Since iTunes is single-threaded, this script runs `X`-times faster while utilizing the same encoder on an machine with `X` cores
 
 ## how?
 
 ### requirements
 
 - [ffmpeg](https://ffmpeg.org) must be installed, or at least located locally, such that you can specify with the path with `--ffmpeg` option. Uses your system path by default.
-- [node & npm](https://nodejs.org/en) is used to executed and run this tool; they must be installed such that the `npx` command succeeds. You may use [pnpx](https://pnpm.io/installation) instead, if you prefer.
+- [node.js](https://nodejs.org) is used to executed and run this tool; they must be installed such that the `npx` command succeeds.
 
 There are no other dependencies.
 
