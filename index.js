@@ -6,6 +6,8 @@ import { argv } from 'process'
 
 const inputDir = argv.includes('--input') ? argv[argv.indexOf('--input') + 1] : null
 const outputDir = argv.includes('--output') ? argv[argv.indexOf('--output') + 1] : null
+const ffmpegPath = argv.includes('--ffmpeg') ? argv[argv.indexOf('--ffmpeg') + 1] : 'ffmpeg'
+
 const dryRun = argv.includes('--dry-run')
 const ipod = argv.includes('--ipod')
 let codec = argv.includes('--codec') ? argv[argv.indexOf('--codec') + 1] : null
@@ -15,7 +17,9 @@ if (!codec && ipod) codec = 'aac'
 
 // throw if missing require params
 if (!inputDir || !outputDir || !codec) {
-  console.error('Usage: node script.js --input <inputDir> --output <outputDir> --codec [flac|alac|aac|wav|mp3|ogg] [--dry-run] [--ipod]')
+  console.error(
+    'Usage: node script.js --input <inputDir> --output <outputDir> --codec [flac|alac|aac|wav|mp3|ogg] [--dry-run] [--ipod] [--ffmpeg /opt/homebrew/bin/ffmpeg]'
+  )
   process.exit(1)
 }
 
@@ -73,7 +77,7 @@ const convertFile = async (inputFilePath, outputFilePath) => {
     }[codec] || path.extname(inputFilePath)
 
   const outputFilePathWithCodec = outputFilePath.replace(/\.[^/.]+$/, outputExtension)
-  const command = `ffmpeg -i "${inputFilePath}" -i "${inputFilePath}" ${codecParams} "${outputFilePathWithCodec}"`
+  const command = `${ffmpegPath} -i "${inputFilePath}" -i "${inputFilePath}" ${codecParams} "${outputFilePathWithCodec}"`
 
   return new Promise((resolve, reject) => {
     const process = exec(command)
