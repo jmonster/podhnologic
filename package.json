@@ -1,6 +1,7 @@
 {
   "name": "music-monstger",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "type": "module",
-  "bin": "index.mjs"
+  "bin": "index.mjs",
+  "description": "a one-liner to convert your music collection to another format; e.g. iPod"
 }
