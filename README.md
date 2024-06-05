@@ -2,7 +2,8 @@
 
 ## what?
 
-This is a script I wrote to convert my FLAC music collection to ALAC and 256 AAC for my recently restored iPod.
+A tool to convert your music collection from A to B.
+Written for and used by me to convert my FLAC library to ALAC + 256 AAC.
 
 ## why?
 
