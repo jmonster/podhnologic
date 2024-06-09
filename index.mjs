@@ -35,23 +35,32 @@ const ffmpegHasAACAT = () => {
 }
 
 const getCodecParams = (codec) => {
+  let baseParams = `-map_metadata -1` // Start with stripping all metadata
+  const essentialMetadata = ['title', 'artist', 'album', 'track', 'disc', 'composer', 'genre', 'year']
+
+  // Append essential metadata fields
+  essentialMetadata.forEach((field) => {
+    baseParams += ` -metadata ${field}="\${metadata['${field}']}"`
+  })
+
   switch (codec) {
     case 'alac':
-      return '-c:a alac -c:v copy'
+      return `${baseParams} -c:a alac -c:v copy`
     case 'flac':
-      return '-c:a flac -c:v copy'
+      return `${baseParams} -c:a flac -c:v copy`
     case 'wav':
-      return '-c:a pcm_s16le -vn'
+      return `${baseParams} -c:a pcm_s16le -vn`
     case 'ogg':
-      return '-c:a libvorbis -q:a 8 -vn'
+      return `${baseParams} -c:a libvorbish -q:a 8 -vn`
     case 'aac':
-      return `-c:a ${ffmpegHasAACAT() ? 'aac_at' : 'aac'} -b:a 256k -c:v copy`
+      return `${baseParams} -c:a ${ffmpegHasAACAT() ? 'aac_at' : 'aac'} -b:a 256k -c:v copy`
     case 'mp3':
-      return '-c:a libmp3lame -q:a 0'
+      return `${baseParams} -c:a libmp3lame -q:a 0`
     default:
       throw new Error(`Unsupported codec: ${codec}`)
   }
 }
+
 const codecParams = getCodecParams(codec)
 
 const convertFile = async (inputFilePath, outputFilePath) => {
