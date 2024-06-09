@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 
 import fs from 'fs'
-import path from 'path'
-import { exec, execSync } from 'child_process'
 import os from 'os'
+import path from 'path'
 import { argv } from 'process'
+import { exec, execSync } from 'child_process'
 
 const inputDir = argv.includes('--input') ? argv[argv.indexOf('--input') + 1] : null
 const outputDir = argv.includes('--output') ? argv[argv.indexOf('--output') + 1] : null
 const ffmpegPath = argv.includes('--ffmpeg') ? argv[argv.indexOf('--ffmpeg') + 1] : 'ffmpeg'
 const dryRun = argv.includes('--dry-run')
 const ipod = argv.includes('--ipod')
-let codec = argv.includes('--codec') ? argv[argv.indexOf('--codec') + 1] : ipod ? 'aac' : null
+const codec = argv.includes('--codec') ? argv[argv.indexOf('--codec') + 1] : ipod ? 'aac' : null
 
 if (!inputDir || !outputDir || !codec) {
   console.error(
@@ -26,28 +26,29 @@ const audioExtensions = ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a']
 const isAudioFile = (file) => audioExtensions.includes(path.extname(file).toLowerCase())
 
 const ffmpegHasAACAT = () => {
-  const result = execSync('ffmpeg -h encoder=aac_at').toString()
+  const result = execSync('ffmpeg -h encoder=aac_at > /dev/null 2>&1').toString()
   return !result.includes('Unknown encoder') && !result.includes('is not recognized')
 }
 
 const getCodecParams = (codec, metadata) => {
-  // strip these metadata fields when `ipod`
-  const baseParams = ipod ? `-metadata lyrics= -metadata album_artist= -metadata composer= -metadata copyright=` : ''
+  // update to set `artist` to the value for album start if/when such a value is present -- do not add the album artist keyword itself
+  const desiredMetadata = ['title', 'artist', 'album', 'date', 'track', 'genre', 'disc']
+    .map((attr) => `-metadata ${attr}="${metadata.format.tags[attr] || ''}"`)
+    .join(' ')
 
-  // Codec specific parameters
   switch (codec) {
     case 'alac':
-      return `${baseParams} -c:a alac -c:v copy`
+      return `-map_metadata -1 ${desiredMetadata} -c:a alac -c:v copy`
     case 'flac':
-      return `${baseParams} -c:a flac -c:v copy`
+      return `-map_metadata -1 ${desiredMetadata} -c:a flac -c:v copy`
     case 'wav':
-      return `${baseParams} -c:a pcm_s16le -vn`
+      return `-map_metadata -1 ${desiredMetadata} -c:a pcm_s16le -vn`
     case 'ogg':
-      return `${baseParams} -c:a libvorbis -q:a 8 -vn`
+      return `-map_metadata -1 ${desiredMetadata} -c:a libvorbis -q:a 8 -vn`
     case 'aac':
-      return `${baseParams} -c:a ${ffmpegHasAACAT() ? 'aac_at' : 'aac'} -b:a 256k -c:v copy`
+      return `-map_metadata -1 ${desiredMetadata} -c:a ${ffmpegHasAACAT() ? 'aac_at' : 'aac'} -b:a 256k -c:v copy`
     case 'mp3':
-      return `${baseParams} -c:a libmp3lame -q:a 0`
+      return `-map_metadata -1 ${desiredMetadata} -c:a libmp3lame -q:a 0`
     default:
       throw new Error(`Unsupported codec: ${codec}`)
   }
@@ -89,12 +90,11 @@ async function convertFile(inputFilePath, outputFilePath, codecParams) {
 
   const outputExtension = codecToFileExtension[codec] || path.extname(inputFilePath)
   const outputFilePathWithCodec = outputFilePath.replace(/\.[^/.]+$/, outputExtension)
-  // const outputFilePathWithCodec = outputFilePath.replace(/\.[^/.]+$/, path.extname(inputFilePath))
-
-  const command = `${ffmpegPath} -i "${inputFilePath}" ${codecParams} "${outputFilePathWithCodec}"`
+  const command = `${ffmpegPath} -i "${inputFilePath}" ${codecParams} "${outputFilePathWithCodec}" > /dev/null 2>&1`
+  console.log(command)
 
   return new Promise((resolve, reject) => {
-    const process = exec(command, (error, stdout, stderr) => {
+    exec(command, (error, stdout, stderr) => {
       if (error) {
         console.error(`Error: ${error.message}`)
         reject(new Error(`Conversion failed for ${inputFilePath}`))
@@ -116,24 +116,46 @@ async function* walk(dir) {
 
 async function processFiles(inputDir, outputDir) {
   const fileQueue = []
-  for await (const file of walk(inputDir)) {
+  let activeWorkers = 0
+
+  const processFile = async (file) => {
     if (isAudioFile(file)) {
-      const metadata = extractMetadata(file) // Assume extractMetadata is a function you will define
+      const metadata = await extractMetadata(file)
       const relativePath = path.relative(inputDir, file)
-      const outputFilePath = path.join(outputDir, relativePath)
+      const outputFilePath = path.join(outputDir, relativePath) // fix to use the output extension instead of input extension
       const codecParams = getCodecParams(codec, metadata)
-      fileQueue.push({ inputFilePath: file, outputFilePath, codecParams })
+      await convertFile(file, outputFilePath, codecParams)
     }
   }
 
-  await Promise.all(
-    Array.from({ length: numThreads }, async () => {
-      while (fileQueue.length > 0) {
-        const { inputFilePath, outputFilePath, codecParams } = fileQueue.shift()
-        await convertFile(inputFilePath, outputFilePath, codecParams)
+  const worker = async () => {
+    while (true) {
+      const file = fileQueue.shift()
+      if (!file) break
+      await processFile(file)
+      activeWorkers--
+      if (activeWorkers === 0 && fileQueue.length === 0) {
+        break
       }
-    })
-  )
+    }
+  }
+
+  for await (const file of walk(inputDir)) {
+    fileQueue.push(file)
+    if (activeWorkers < numThreads) {
+      activeWorkers++
+      worker()
+    }
+  }
+
+  await new Promise((resolve) => {
+    const interval = setInterval(() => {
+      if (activeWorkers === 0 && fileQueue.length === 0) {
+        clearInterval(interval)
+        resolve()
+      }
+    }, 100)
+  })
 }
 
 async function main() {
