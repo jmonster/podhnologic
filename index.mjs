@@ -31,28 +31,8 @@ const ffmpegHasAACAT = () => {
 }
 
 const getCodecParams = (codec, metadata) => {
-  let baseParams = ''
-
-  if (ipod) {
-    let essentialMetadata = [
-      'title',
-      'artist',
-      metadata && metadata.album_artist ? 'album_artist' : 'album',
-      'track',
-      'disc',
-      'composer',
-      'genre',
-      'year',
-    ].filter((key) => key !== 'album_artist') // Omit 'album_artist'
-
-    baseParams = `-map_metadata -1` // Start with stripping all metadata
-
-    essentialMetadata.forEach((key) => {
-      if (metadata && metadata[key]) {
-        baseParams += ` -metadata ${key}="${metadata[key]}"`
-      }
-    })
-  }
+  // strip these metadata fields when `ipod`
+  const baseParams = ipod ? `-metadata lyrics= -metadata album_artist= -metadata composer= -metadata copyright=` : ''
 
   // Codec specific parameters
   switch (codec) {
