@@ -26,14 +26,19 @@ const audioExtensions = ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a']
 const isAudioFile = (file) => audioExtensions.includes(path.extname(file).toLowerCase())
 
 const ffmpegHasAACAT = () => {
-  const result = execSync('ffmpeg -h encoder=aac_at > /dev/null 2>&1').toString()
-  return !result.includes('Unknown encoder') && !result.includes('is not recognized')
+  try {
+    const result = execSync('ffmpeg -h encoder=aac_at > /dev/null 2>&1').toString()
+    return !result.includes('Unknown encoder') && !result.includes('is not recognized')
+  } catch {
+    return false
+  }
 }
 
+const escapeShellArg = (arg) => `"${arg.replace(/(["$`\\])/g, '\\$1')}"`
+
 const getCodecParams = (codec, metadata) => {
-  // update to set `artist` to the value for album start if/when such a value is present -- do not add the album artist keyword itself
   const desiredMetadata = ['title', 'artist', 'album', 'date', 'track', 'genre', 'disc']
-    .map((attr) => `-metadata ${attr}="${metadata.format.tags[attr] || ''}"`)
+    .map((attr) => `-metadata ${attr}=${escapeShellArg(metadata.format.tags[attr] || '')}`)
     .join(' ')
 
   switch (codec) {
@@ -90,17 +95,19 @@ async function convertFile(inputFilePath, outputFilePath, codecParams) {
 
   const outputExtension = codecToFileExtension[codec] || path.extname(inputFilePath)
   const outputFilePathWithCodec = outputFilePath.replace(/\.[^/.]+$/, outputExtension)
+
   const command = `${ffmpegPath} -i "${inputFilePath}" ${codecParams} "${outputFilePathWithCodec}" > /dev/null 2>&1`
-  console.log(command)
+  console.debug(`${codecParams} "${outputFilePathWithCodec}`)
 
   return new Promise((resolve, reject) => {
     exec(command, (error, stdout, stderr) => {
       if (error) {
         console.error(`Error: ${error.message}`)
         reject(new Error(`Conversion failed for ${inputFilePath}`))
+      } else {
+        if (stderr) console.error(`Error: ${stderr}`)
+        resolve()
       }
-      if (stderr) console.error(`Error: ${stderr}`)
-      resolve()
     })
   })
 }
@@ -120,31 +127,31 @@ async function processFiles(inputDir, outputDir) {
 
   const processFile = async (file) => {
     if (isAudioFile(file)) {
-      const metadata = await extractMetadata(file)
-      const relativePath = path.relative(inputDir, file)
-      const outputFilePath = path.join(outputDir, relativePath) // fix to use the output extension instead of input extension
-      const codecParams = getCodecParams(codec, metadata)
-      await convertFile(file, outputFilePath, codecParams)
+      try {
+        const metadata = await extractMetadata(file)
+        const relativePath = path.relative(inputDir, file)
+        const outputFilePath = path.join(outputDir, relativePath)
+        const codecParams = getCodecParams(codec, metadata)
+        await convertFile(file, outputFilePath, codecParams)
+      } catch (error) {
+        console.error(`Failed to process file: ${file}, Error: ${error.message}`)
+      }
     }
   }
 
   const worker = async () => {
-    while (true) {
+    while (fileQueue.length > 0) {
       const file = fileQueue.shift()
-      if (!file) break
-      await processFile(file)
-      activeWorkers--
-      if (activeWorkers === 0 && fileQueue.length === 0) {
-        break
-      }
+      if (file) await processFile(file)
     }
+    activeWorkers--
   }
 
   for await (const file of walk(inputDir)) {
     fileQueue.push(file)
     if (activeWorkers < numThreads) {
       activeWorkers++
-      worker()
+      worker().catch(console.error)
     }
   }
 
