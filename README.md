@@ -30,6 +30,9 @@ The `--ipod` flag is shorthand for 256kbps AAC
 
 Runs `X`-times faster than iTunes while utilizing the same encoder on a machine with `X` idle cores
 
+<img width="434" alt="image" src="https://github.com/jmonster/music-monstger/assets/368767/8a50948c-1e63-441d-8df8-ea3bebd75895">
+
+
 # how?
 
 ## requirements
