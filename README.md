@@ -18,20 +18,19 @@ Since it's considered the best, we're still going to use Apple's encoder if it's
 
 This tool is simple and opinionated. I assume you want the best possible but practical quality.
 
-- `alac` & `flac`: lossless
+- `alac` & `flac`: lossless (or down-sampled with `--ipod`)
 - `aac`: 256K w/Apple's encoder (where available)
 - `ogg`: libvorbis -q:a 8 which is the edge of human perception
 - `wav`: pcm_s16le (should we be doing something different?)
 - `mp3`: 320kbps
 
-The `--ipod` flag is shorthand for 256kbps AAC
+The `--ipod` flag is shorthand for 256kbps AAC. If `--codec alac` is also specified, it'll be down-sampled to 16-bit 44.1kHz to prevent track skipping.
 
 # performance
 
 Runs `X`-times faster than iTunes while utilizing the same encoder on a machine with `X` idle cores
 
 <img width="434" alt="image" src="https://github.com/jmonster/music-monstger/assets/368767/8a50948c-1e63-441d-8df8-ea3bebd75895">
-
 
 # how?
 
