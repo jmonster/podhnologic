@@ -48,7 +48,7 @@ const getCodecParams = (codec, metadata) => {
 
   switch (codec) {
     case 'alac':
-      return `-map_metadata -1 ${desiredMetadata} -c:a alac -c:v copy ${ipod ? '-sample_fmt s16p -ar 44100' : ''}`
+      return `-map_metadata -1 ${desiredMetadata} -c:a alac -c:v copy -movflags +faststart ${ipod ? '-sample_fmt s16p -ar 44100' : ''}`
     case 'flac':
       return `-map_metadata -1 ${desiredMetadata} -c:a flac -c:v copy`
     case 'wav':
