@@ -67,6 +67,18 @@ npx github:jmonster/music-monstger --input "/path/to/input" --output "/path/to/o
 npx github:jmonster/music-monstger --input "/path/to/input" --output "/path/to/output" --ipod --ffmpeg "/opt/homebrew/bin/ffmpeg"
 ```
 
+## Node.js Installation
+
+Follow the instructions for your operating system to [install Node.js](https://nodejs.org/en/download/prebuilt-installer/)
+
+## FFmpeg Installation
+
+Follow the instructions for your operating system to install FFmpeg:
+
+- **Linux**: [Install FFmpeg on Linux](https://ffmpeg.org/download.html#build-linux)
+- **Windows**: [Install FFmpeg on Windows](https://ffmpeg.org/download.html#build-windows)
+- **macOS**: [Install FFmpeg on macOS](https://ffmpeg.org/download.html#build-mac)
+
 # disclaimer
 
 This software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and noninfringement. In no event shall the authors be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the software or the use or other dealings in the software.
