@@ -44,7 +44,7 @@ There are no other dependencies.
 # options
 
 ```sh
-node script.js \
+npx github:jmonster/music-monstger \
   --input <inputDir> \
   --output <outputDir> \
   --codec [flac|alac|aac|wav|mp3|ogg] \
