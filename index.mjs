@@ -69,21 +69,18 @@ const getCodecParams = (codec, metadata, ipod) => {
     .map((attr) => `-metadata ${attr}=${escapeShellArg(metadata.format.tags[attr] || '')}`)
     .join(' ') // Join metadata attributes with spaces
 
-  // Base parameters for all codecs
-  const baseParams = `${
-    ipod ? '-map 0:a' : '-map 0'
-  } -map_metadata -1 ${desiredMetadata} -movflags +faststart -disposition:a 0 -movflags +use_metadata_tags`
-  // Video parameters, empty if `ipod` is specified
-  const videoParams = ipod ? '' : '-c:v copy'
+  // Base parameters for all/most codecs
+  const baseParams = `-map 0 -map_metadata -1 ${desiredMetadata}`
+  const videoParams = '-c:v copy'
 
   // Codec-specific parameters
   const codecParams = {
-    alac: `-c:a alac ${videoParams} ${ipod ? '-sample_fmt s16p -ar 44100' : ''}`, // ALAC codec params
-    flac: `-c:a flac ${videoParams}`, // FLAC codec params
-    wav: '-c:a pcm_s16le -vn', // WAV codec params
-    ogg: '-c:a libvorbis -q:a 8 -vn', // OGG codec params
-    aac: `-c:a ${ffmpegHasAACAT() ? 'aac_at' : 'aac'} -b:a 256k ${videoParams}`, // AAC codec params
-    mp3: '-c:a libmp3lame -q:a 0', // MP3 codec params
+    alac: `-c:a alac ${videoParams} ${ipod ? '-sample_fmt s16p -ar 44100 -movflags +faststart -disposition:a 0' : ''}`, // ALAC codec params with video copy
+    flac: `-c:a flac ${videoParams}`,
+    wav: '-c:a pcm_s16le -vn',
+    ogg: '-c:a libvorbis -q:a 8 -vn',
+    aac: `-c:a ${ffmpegHasAACAT() ? 'aac_at' : 'aac'} -b:a 256k ${videoParams}`,
+    mp3: '-c:a libmp3lame -q:a 0',
   }
 
   return `${baseParams} ${codecParams[codec]}` // Return full command parameters for the codec
