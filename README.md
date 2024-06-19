@@ -24,7 +24,7 @@ This tool is simple and opinionated. I assume you want the best possible but pra
 - `wav`: pcm_s16le (should we be doing something different?)
 - `mp3`: 320kbps
 
-The `--ipod` flag is shorthand for 256kbps AAC. If `--codec alac` is also specified, it'll be down-sampled to 16-bit 44.1kHz to (allegedly) prevent track skipping.
+The `--ipod` flag is shorthand for 256kbps AAC. If `--codec alac` is also specified, it'll be down-sampled to 16-bit 44.1kHz to (allegedly) prevent track skipping. It further moves the moov atom at the beginning of the file, which is useful for streaming and playback compatibility.
 
 # performance
 

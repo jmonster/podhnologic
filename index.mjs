@@ -27,14 +27,19 @@ const isAudioFile = (file) => audioExtensions.includes(path.extname(file).toLowe
 
 const ffmpegHasAACAT = () => {
   try {
-    const result = execSync('ffmpeg -h encoder=aac_at > /dev/null 2>&1').toString()
+    const result = execSync(`${ffmpegPath} -h encoder=aac_at > /dev/null 2>&1`).toString()
     return !result.includes('Unknown encoder') && !result.includes('is not recognized')
   } catch {
     return false
   }
 }
 
-const escapeShellArg = (arg) => `"${arg.replace(/(["$`\\])/g, '\\$1')}"`
+const escapeShellArg = (arg) => {
+  if (process.platform === 'win32') {
+    return `"${arg.replace(/(["%])/g, '^$1')}"`
+  }
+  return `"${arg.replace(/(["$`\\])/g, '\\$1')}"`
+}
 
 const getCodecParams = (codec, metadata) => {
   const desiredMetadata = ['title', 'artist', 'album', 'date', 'track', 'genre', 'disc']
@@ -61,13 +66,16 @@ const getCodecParams = (codec, metadata) => {
 
 function extractMetadata(filePath) {
   return new Promise((resolve, reject) => {
-    exec(`ffprobe -v quiet -print_format json -show_format -show_streams "${filePath}"`, (error, stdout) => {
-      if (error) {
-        reject(error)
-      } else {
-        resolve(JSON.parse(stdout))
+    exec(
+      `${ffmpegPath.replace('ffmpeg', 'ffprobe')} -v quiet -print_format json -show_format -show_streams "${filePath}"`,
+      (error, stdout) => {
+        if (error) {
+          reject(error)
+        } else {
+          resolve(JSON.parse(stdout))
+        }
       }
-    })
+    )
   })
 }
 
@@ -97,7 +105,7 @@ async function convertFile(inputFilePath, outputFilePath, codecParams) {
   const outputFilePathWithCodec = outputFilePath.replace(/\.[^/.]+$/, outputExtension)
 
   const command = `${ffmpegPath} -i "${inputFilePath}" ${codecParams} "${outputFilePathWithCodec}" > /dev/null 2>&1`
-  console.debug(`${codecParams} "${outputFilePathWithCodec}`)
+  console.debug(command + '\n')
 
   return new Promise((resolve, reject) => {
     exec(command, (error, stdout, stderr) => {
