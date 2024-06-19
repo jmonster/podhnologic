@@ -25,14 +25,21 @@ const audioExtensions = ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a']
 
 const isAudioFile = (file) => audioExtensions.includes(path.extname(file).toLowerCase())
 
-const ffmpegHasAACAT = () => {
-  try {
-    const result = execSync(`${ffmpegPath} -h encoder=aac_at > /dev/null 2>&1`).toString()
-    return !result.includes('Unknown encoder') && !result.includes('is not recognized')
-  } catch {
-    return false
+// Function to check if ffmpeg has AAC_AT encoder and cache the result
+const ffmpegHasAACAT = (() => {
+  let cachedResult = null
+  return () => {
+    if (cachedResult === null) {
+      try {
+        const result = execSync(`${ffmpegPath} -h encoder=aac_at > /dev/null 2>&1`).toString()
+        cachedResult = !result.includes('Unknown encoder') && !result.includes('is not recognized')
+      } catch {
+        cachedResult = false
+      }
+    }
+    return cachedResult
   }
-}
+})()
 
 const escapeShellArg = (arg) => {
   if (process.platform === 'win32') {
@@ -41,30 +48,7 @@ const escapeShellArg = (arg) => {
   return `"${arg.replace(/(["$`\\])/g, '\\$1')}"`
 }
 
-const getCodecParams = (codec, metadata) => {
-  const desiredMetadata = ['title', 'artist', 'album', 'date', 'track', 'genre', 'disc']
-    .map((attr) => `-metadata ${attr}=${escapeShellArg(metadata.format.tags[attr] || '')}`)
-    .join(' ')
-
-  switch (codec) {
-    case 'alac':
-      return `-map_metadata -1 ${desiredMetadata} -c:a alac -c:v copy -movflags +faststart ${ipod ? '-sample_fmt s16p -ar 44100' : ''}`
-    case 'flac':
-      return `-map_metadata -1 ${desiredMetadata} -c:a flac -c:v copy`
-    case 'wav':
-      return `-map_metadata -1 ${desiredMetadata} -c:a pcm_s16le -vn`
-    case 'ogg':
-      return `-map_metadata -1 ${desiredMetadata} -c:a libvorbis -q:a 8 -vn`
-    case 'aac':
-      return `-map_metadata -1 ${desiredMetadata} -c:a ${ffmpegHasAACAT() ? 'aac_at' : 'aac'} -b:a 256k -c:v copy`
-    case 'mp3':
-      return `-map_metadata -1 ${desiredMetadata} -c:a libmp3lame -q:a 0`
-    default:
-      throw new Error(`Unsupported codec: ${codec}`)
-  }
-}
-
-function extractMetadata(filePath) {
+const extractMetadata = (filePath) => {
   return new Promise((resolve, reject) => {
     exec(
       `${ffmpegPath.replace('ffmpeg', 'ffprobe')} -v quiet -print_format json -show_format -show_streams "${filePath}"`,
@@ -79,20 +63,49 @@ function extractMetadata(filePath) {
   })
 }
 
+const getCodecParams = (codec, metadata, ipod) => {
+  // Construct metadata string for desired attributes
+  const desiredMetadata = ['title', 'artist', 'album', 'date', 'track', 'genre', 'disc']
+    .map((attr) => `-metadata ${attr}=${escapeShellArg(metadata.format.tags[attr] || '')}`)
+    .join(' ') // Join metadata attributes with spaces
+
+  // Base parameters for all codecs
+  const baseParams = `${
+    ipod ? '-map 0:a' : '-map 0'
+  } -map_metadata -1 ${desiredMetadata} -movflags +faststart -disposition:a 0 -movflags +use_metadata_tags`
+  // Video parameters, empty if `ipod` is specified
+  const videoParams = ipod ? '' : '-c:v copy'
+
+  // Codec-specific parameters
+  const codecParams = {
+    alac: `-c:a alac ${videoParams} ${ipod ? '-sample_fmt s16p -ar 44100' : ''}`, // ALAC codec params
+    flac: `-c:a flac ${videoParams}`, // FLAC codec params
+    wav: '-c:a pcm_s16le -vn', // WAV codec params
+    ogg: '-c:a libvorbis -q:a 8 -vn', // OGG codec params
+    aac: `-c:a ${ffmpegHasAACAT() ? 'aac_at' : 'aac'} -b:a 256k ${videoParams}`, // AAC codec params
+    mp3: '-c:a libmp3lame -q:a 0', // MP3 codec params
+  }
+
+  return `${baseParams} ${codecParams[codec]}` // Return full command parameters for the codec
+}
+
 async function convertFile(inputFilePath, outputFilePath, codecParams) {
   if (dryRun) {
+    // If dry-run mode, just log the command without executing
     console.log(`Dry run: Converting ${inputFilePath} to ${outputFilePath} with params ${codecParams}`)
     return
   }
 
   if (fs.existsSync(outputFilePath)) {
+    // Skip if the output file already exists
     console.log(`File exists, skipping: ${outputFilePath}`)
     return
   }
 
-  fs.mkdirSync(path.dirname(outputFilePath), { recursive: true })
+  fs.mkdirSync(path.dirname(outputFilePath), { recursive: true }) // Create output directory if it doesn't exist
 
   const codecToFileExtension = {
+    // Mapping from codec to file extension
     alac: '.m4a',
     flac: '.flac',
     wav: '.wav',
@@ -101,47 +114,51 @@ async function convertFile(inputFilePath, outputFilePath, codecParams) {
     mp3: '.mp3',
   }
 
-  const outputExtension = codecToFileExtension[codec] || path.extname(inputFilePath)
-  const outputFilePathWithCodec = outputFilePath.replace(/\.[^/.]+$/, outputExtension)
+  const outputExtension = codecToFileExtension[codec] || path.extname(inputFilePath) // Determine output file extension
+  const outputFilePathWithCodec = outputFilePath.replace(/\.[^/.]+$/, outputExtension) // Construct output file path with correct extension
 
-  const command = `${ffmpegPath} -i "${inputFilePath}" ${codecParams} "${outputFilePathWithCodec}" > /dev/null 2>&1`
-  console.debug(command + '\n')
+  const command = `${ffmpegPath} -i "${inputFilePath}" ${codecParams} "${outputFilePathWithCodec}" > /dev/null 2>&1` // Construct ffmpeg command
+  console.debug(command) // Debug log for the command
 
   return new Promise((resolve, reject) => {
     exec(command, (error, stdout, stderr) => {
+      // Execute the command
       if (error) {
+        // Log and reject if there's an error
         console.error(`Error: ${error.message}`)
         reject(new Error(`Conversion failed for ${inputFilePath}`))
       } else {
-        if (stderr) console.error(`Error: ${stderr}`)
-        resolve()
+        if (stderr) console.error(`Error: ${stderr}`) // Log stderr if any
+        resolve() // Resolve the promise if successful
       }
     })
   })
 }
 
 async function* walk(dir) {
-  const files = await fs.promises.readdir(dir, { withFileTypes: true })
+  const files = await fs.promises.readdir(dir, { withFileTypes: true }) // Read directory contents
   for (const file of files) {
-    const res = path.resolve(dir, file.name)
-    if (file.isDirectory()) yield* walk(res)
-    else yield res
+    const res = path.resolve(dir, file.name) // Resolve file path
+    if (file.isDirectory()) yield* walk(res) // Recursively walk directories
+    else yield res // Yield file path if it's a file
   }
 }
 
 async function processFiles(inputDir, outputDir) {
-  const fileQueue = []
-  let activeWorkers = 0
+  const fileQueue = [] // Queue for files to process
+  let activeWorkers = 0 // Count of active worker threads
 
   const processFile = async (file) => {
     if (isAudioFile(file)) {
+      // Check if the file is an audio file
       try {
-        const metadata = await extractMetadata(file)
-        const relativePath = path.relative(inputDir, file)
-        const outputFilePath = path.join(outputDir, relativePath)
-        const codecParams = getCodecParams(codec, metadata)
-        await convertFile(file, outputFilePath, codecParams)
+        const metadata = await extractMetadata(file) // Extract metadata from the file
+        const relativePath = path.relative(inputDir, file) // Get relative path for the output file
+        const outputFilePath = path.join(outputDir, relativePath) // Construct output file path
+        const codecParams = getCodecParams(codec, metadata, ipod) // Get codec parameters
+        await convertFile(file, outputFilePath, codecParams) // Convert the file
       } catch (error) {
+        // Log any errors
         console.error(`Failed to process file: ${file}, Error: ${error.message}`)
       }
     }
@@ -149,35 +166,39 @@ async function processFiles(inputDir, outputDir) {
 
   const worker = async () => {
     while (fileQueue.length > 0) {
-      const file = fileQueue.shift()
-      if (file) await processFile(file)
+      // Process files while the queue is not empty
+      const file = fileQueue.shift() // Get the next file from the queue
+      if (file) await processFile(file) // Process the file
     }
-    activeWorkers--
+    activeWorkers-- // Decrement active worker count when done
   }
 
   for await (const file of walk(inputDir)) {
-    fileQueue.push(file)
+    // Walk the input directory
+    fileQueue.push(file) // Add each file to the queue
     if (activeWorkers < numThreads) {
+      // Start a new worker if there are fewer than the maximum number of active workers
       activeWorkers++
-      worker().catch(console.error)
+      worker().catch(console.error) // Start worker and catch any errors
     }
   }
 
   await new Promise((resolve) => {
     const interval = setInterval(() => {
+      // Check if all workers are done
       if (activeWorkers === 0 && fileQueue.length === 0) {
-        clearInterval(interval)
-        resolve()
+        clearInterval(interval) // Clear the interval when done
+        resolve() // Resolve the promise
       }
     }, 100)
   })
 }
 
 async function main() {
-  if (dryRun) console.log('Dry run enabled. No files will be converted.')
-  console.log(`Using ${numThreads} threads.`)
-  await processFiles(inputDir, outputDir)
-  console.log('All tasks completed.')
+  if (dryRun) console.log('Dry run enabled. No files will be converted.') // Log if dry run mode is enabled
+  console.log(`Using ${numThreads} threads.`) // Log the number of threads being used
+  await processFiles(inputDir, outputDir) // Process the files
+  console.log('All tasks completed.') // Log completion
 }
 
-main().catch(console.error)
+main().catch(console.error) // Run the main function and catch any errors
