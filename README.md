@@ -1,6 +1,6 @@
 # jTunes
 
-convert your music collection to another format; e.g. iPod
+Convert your music collection to another format; e.g. iPod
 
 ```sh
 npx github:jmonster/jTunes \
@@ -11,8 +11,8 @@ npx github:jmonster/jTunes \
 
 # what?
 
-- a tool to convert your music collection from A to B
-- written for and used by me to convert my FLAC library to ALAC + 256 AAC
+- A tool to convert your music collection from A to B
+- Written for and used by me to convert my FLAC library to ALAC + 256 AAC
 
 # why?
 
@@ -82,11 +82,11 @@ npx github:jmonster/jTunes \
 --ffmpeg "/opt/homebrew/bin/ffmpeg"
 ```
 
-## Node.js Installation
+## node.js Installation
 
 Follow the instructions for your operating system to [install Node.js](https://nodejs.org/en/download/prebuilt-installer/)
 
-## FFmpeg Installation
+## ffmpeg Installation
 
 Follow the instructions for your operating system to install FFmpeg:
 
