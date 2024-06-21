@@ -37,6 +37,10 @@ Runs `X`-times faster than iTunes while utilizing the same encoder on a machine 
 
 <img width="434" alt="image" src="https://github.com/jmonster/jTunes/assets/368767/8a50948c-1e63-441d-8df8-ea3bebd75895">
 
+# resumable
+
+Checks if the output file already exists before converting. If a big job gets interrupted, just re-run the same command and the files that are already done will be skipped.
+
 # how?
 
 ## requirements
