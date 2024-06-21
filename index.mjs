@@ -64,9 +64,19 @@ const extractMetadata = (filePath) => {
 }
 
 const getCodecParams = (codec, metadata, ipod) => {
+  // Normalize metadata keys to lowercase for case-insensitive mapping
+  const normalizedTags = Object.keys(metadata.format.tags || {}).reduce((acc, key) => {
+    acc[key.toLowerCase()] = metadata.format.tags[key]
+    return acc
+  }, {})
+
+  // Desired metadata keys in lowercase
+  const desiredMetadataKeys = ['title', 'artist', 'album', 'date', 'track', 'genre', 'disc']
+
   // Construct metadata string for desired attributes
-  const desiredMetadata = ['title', 'artist', 'album', 'date', 'track', 'genre', 'disc']
-    .map((attr) => `-metadata ${attr}=${escapeShellArg(metadata.format.tags[attr] || '')}`)
+  const desiredMetadata = desiredMetadataKeys
+    .map((key) => (normalizedTags[key] ? `-metadata ${key}=${escapeShellArg(normalizedTags[key])}` : ''))
+    .filter(Boolean)
     .join(' ') // Join metadata attributes with spaces
 
   // Base parameters for all/most codecs
