@@ -1,6 +1,6 @@
 # jTunes
 
-## convert your music collection to another format; e.g. iPod
+convert your music collection to another format; e.g. iPod
 
 ```sh
 npx github:jmonster/jTunes \
