@@ -31,7 +31,7 @@ This tool is simple and opinionated. I assume you want the best possible but pra
 
 The `--ipod` flag is shorthand for 256kbps AAC. If `--codec alac` is also specified, it'll be down-sampled to 16-bit 44.1kHz to (allegedly) prevent track skipping. It further moves the moov atom at the beginning of the file, which is useful for streaming and playback compatibility.
 
-# performance
+# performannt
 
 Runs `X`-times faster than iTunes while utilizing the same encoder on a machine with `X` idle cores
 
