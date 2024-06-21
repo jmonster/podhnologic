@@ -63,7 +63,8 @@ npx github:jmonster/jTunes \
 ```sh
 npx github:jmonster/jTunes \
 --input "/path/to/input" \
---output "/path/to/output" --ipod
+--output "/path/to/output" \
+--ipod
 ```
 
 ```sh
