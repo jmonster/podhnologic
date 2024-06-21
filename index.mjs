@@ -87,12 +87,6 @@ const getCodecParams = (codec, metadata, ipod) => {
 }
 
 async function convertFile(inputFilePath, outputFilePath, codecParams) {
-  if (dryRun) {
-    // If dry-run mode, just log the command without executing
-    console.log(`Dry run: Converting ${inputFilePath} to ${outputFilePath} with params ${codecParams}`)
-    return
-  }
-
   const codecToFileExtension = {
     // Mapping from codec to file extension
     alac: '.m4a',
@@ -105,6 +99,14 @@ async function convertFile(inputFilePath, outputFilePath, codecParams) {
 
   const outputExtension = codecToFileExtension[codec] || path.extname(inputFilePath)
   const outputFilePathWithCodec = outputFilePath.replace(/\.[^/.]+$/, outputExtension)
+  const command = `${ffmpegPath} -i "${inputFilePath}" ${codecParams} "${outputFilePathWithCodec}" > /dev/null 2>&1` // Construct ffmpeg command
+
+  if (dryRun) {
+    // If dry-run mode, just log the command without executing
+    console.log(`[dry run] converting ${inputFilePath} to ${outputFilePath} with the following command`)
+    console.log('\x1b[92m%s\x1b[0m', `${command}\n`)
+    return
+  }
 
   if (fs.existsSync(outputFilePathWithCodec)) {
     console.log(`File exists, skipping: ${outputFilePathWithCodec}`)
@@ -113,8 +115,7 @@ async function convertFile(inputFilePath, outputFilePath, codecParams) {
 
   fs.mkdirSync(path.dirname(outputFilePathWithCodec), { recursive: true })
 
-  const command = `${ffmpegPath} -i "${inputFilePath}" ${codecParams} "${outputFilePathWithCodec}" > /dev/null 2>&1` // Construct ffmpeg command
-  console.debug(command) // Debug log for the command
+  console.debug('\x1b[92m%s\x1b[0m', command, '\n') // Debug log for the command
 
   return new Promise((resolve, reject) => {
     exec(command, (error, stdout, stderr) => {
