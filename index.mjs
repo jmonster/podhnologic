@@ -93,14 +93,6 @@ async function convertFile(inputFilePath, outputFilePath, codecParams) {
     return
   }
 
-  if (fs.existsSync(outputFilePath)) {
-    // Skip if the output file already exists
-    console.log(`File exists, skipping: ${outputFilePath}`)
-    return
-  }
-
-  fs.mkdirSync(path.dirname(outputFilePath), { recursive: true }) // Create output directory if it doesn't exist
-
   const codecToFileExtension = {
     // Mapping from codec to file extension
     alac: '.m4a',
@@ -111,8 +103,15 @@ async function convertFile(inputFilePath, outputFilePath, codecParams) {
     mp3: '.mp3',
   }
 
-  const outputExtension = codecToFileExtension[codec] || path.extname(inputFilePath) // Determine output file extension
-  const outputFilePathWithCodec = outputFilePath.replace(/\.[^/.]+$/, outputExtension) // Construct output file path with correct extension
+  const outputExtension = codecToFileExtension[codec] || path.extname(inputFilePath)
+  const outputFilePathWithCodec = outputFilePath.replace(/\.[^/.]+$/, outputExtension)
+
+  if (fs.existsSync(outputFilePathWithCodec)) {
+    console.log(`File exists, skipping: ${outputFilePathWithCodec}`)
+    return
+  }
+
+  fs.mkdirSync(path.dirname(outputFilePathWithCodec), { recursive: true })
 
   const command = `${ffmpegPath} -i "${inputFilePath}" ${codecParams} "${outputFilePathWithCodec}" > /dev/null 2>&1` // Construct ffmpeg command
   console.debug(command) // Debug log for the command
