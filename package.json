@@ -1,7 +1,20 @@
 {
-  "name": "music-monstger",
+  "name": "jtunes",
   "version": "1.0.0",
   "type": "module",
   "bin": "index.mjs",
-  "description": "a one-liner to convert your music collection to another format; e.g. iPod"
+  "description": "converts your music collection to another format; e.g. iPod",
+  "keywords": [
+    "ipod",
+    "alac",
+    "aac",
+    "flac",
+    "mp3",
+    "ogg",
+    "vorbis",
+    "wav",
+    "convert",
+    "music",
+    "tunes"
+  ]
 }

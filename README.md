@@ -1,7 +1,12 @@
-# music monstger: a one-liner
+# jTunes
+
+## convert your music collection to another format; e.g. iPod
 
 ```sh
-npx github:jmonster/music-monstger --input "/path/to/input" --output "/path/to/output" --ipod
+npx github:jmonster/jTunes \
+--input "/path/to/input" \
+--output "/path/to/output" \
+--ipod
 ```
 
 # what?
@@ -30,7 +35,7 @@ The `--ipod` flag is shorthand for 256kbps AAC. If `--codec alac` is also specif
 
 Runs `X`-times faster than iTunes while utilizing the same encoder on a machine with `X` idle cores
 
-<img width="434" alt="image" src="https://github.com/jmonster/music-monstger/assets/368767/8a50948c-1e63-441d-8df8-ea3bebd75895">
+<img width="434" alt="image" src="https://github.com/jmonster/jTunes/assets/368767/8a50948c-1e63-441d-8df8-ea3bebd75895">
 
 # how?
 
@@ -44,7 +49,7 @@ There are no other dependencies.
 # options
 
 ```sh
-npx github:jmonster/music-monstger \
+npx github:jmonster/jTunes \
   --input <inputDir> \
   --output <outputDir> \
   --codec [flac|alac|aac|wav|mp3|ogg] \
@@ -56,15 +61,24 @@ npx github:jmonster/music-monstger \
 ### examples
 
 ```sh
-npx github:jmonster/music-monstger --input "/path/to/input" --output "/path/to/output" --ipod
+npx github:jmonster/jTunes \
+--input "/path/to/input" \
+--output "/path/to/output" --ipod
 ```
 
 ```sh
-npx github:jmonster/music-monstger --input "/path/to/input" --output "/path/to/output" --codec alac
+npx github:jmonster/jTunes \
+--input "/path/to/input" \
+--output "/path/to/output" \
+--codec alac
 ```
 
 ```sh
-npx github:jmonster/music-monstger --input "/path/to/input" --output "/path/to/output" --ipod --ffmpeg "/opt/homebrew/bin/ffmpeg"
+npx github:jmonster/jTunes \
+--input "/path/to/input" \
+--output "/path/to/output" \
+--ipod \
+--ffmpeg "/opt/homebrew/bin/ffmpeg"
 ```
 
 ## Node.js Installation
