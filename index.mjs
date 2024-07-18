@@ -15,13 +15,13 @@ const codec = argv.includes('--codec') ? argv[argv.indexOf('--codec') + 1] : ipo
 
 if (!inputDir || !outputDir || !codec) {
   console.error(
-    'Usage: node script.js --input <inputDir> --output <outputDir> --codec [flac|alac|aac|wav|mp3|ogg] [--dry-run] [--ipod] [--ffmpeg /opt/homebrew/bin/ffmpeg]'
+    'Usage:\n --input <inputDir>\n --output <outputDir>\n --codec [flac|alac|aac|opus|wav|mp3]\n [--ipod]\n [--ffmpeg /opt/homebrew/bin/ffmpeg]\n [--dry-run]'
   )
   process.exit(1)
 }
 
 const numThreads = os.cpus().length
-const audioExtensions = ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a']
+const audioExtensions = ['.mp3', '.wav', '.flac', '.aac', '.opus', '.m4a']
 
 const isAudioFile = (file) => audioExtensions.includes(path.extname(file).toLowerCase())
 
@@ -88,7 +88,7 @@ const getCodecParams = (codec, metadata, ipod) => {
     alac: `-c:a alac ${videoParams} ${ipod ? '-sample_fmt s16p -ar 44100 -movflags +faststart -disposition:a 0' : ''}`, // ALAC codec params with video copy
     flac: `-c:a flac ${videoParams}`,
     wav: '-c:a pcm_s16le -vn',
-    ogg: '-c:a libvorbis -q:a 8 -vn',
+    opus: '-c:a libopus -b:a 128k -vn',
     aac: `-c:a ${ffmpegHasAACAT() ? 'aac_at' : 'aac'} -b:a 256k ${videoParams}`,
     mp3: '-c:a libmp3lame -q:a 0',
   }
@@ -102,7 +102,7 @@ async function convertFile(inputFilePath, outputFilePath, codecParams) {
     alac: '.m4a',
     flac: '.flac',
     wav: '.wav',
-    ogg: '.ogg',
+    opus: '.opus',
     aac: '.m4a',
     mp3: '.mp3',
   }
