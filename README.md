@@ -24,10 +24,10 @@ Since it's considered the best, we're still going to use Apple's encoder if it's
 This tool is simple and opinionated. I assume you want the best possible but practical quality.
 
 - `alac` & `flac`: lossless (or down-sampled with `--ipod`)
-- `aac`: 256K w/Apple's encoder (where available)
-- `ogg`: libvorbis -q:a 8 which is the edge of human perception
-- `wav`: pcm_s16le (should we be doing something different?)
+- `aac`: 256kbps w/Apple's encoder (where available)
+- `opus`: 128kbps
 - `mp3`: 320kbps
+- `wav`: pcm_s16le (should we be doing something different?)
 
 # iPod
 
@@ -62,7 +62,7 @@ There are no other dependencies.
 npx github:jmonster/jTunes \
   --input <inputDir> \
   --output <outputDir> \
-  --codec [flac|alac|aac|wav|mp3|ogg] \
+  --codec [flac|alac|aac|wav|mp3|opus] \
   [--ipod] \
   [--ffmpeg /opt/homebrew/bin/ffmpeg] \
   [--dry-run]

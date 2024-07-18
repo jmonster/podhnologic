@@ -12,7 +12,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="Convert audio files using ffmpeg.")
     parser.add_argument('--input', required=True, help='Input directory')
     parser.add_argument('--output', required=True, help='Output directory')
-    parser.add_argument('--codec', choices=['flac', 'alac', 'aac', 'wav', 'mp3', 'ogg'], help='Audio codec')
+    parser.add_argument('--codec', choices=['flac', 'alac', 'aac', 'wav', 'mp3', 'opus'], help='Audio codec')
     parser.add_argument('--ffmpeg', default='ffmpeg', help='Path to ffmpeg executable')
     parser.add_argument('--dry-run', action='store_true', help='Dry run mode')
     parser.add_argument('--ipod', action='store_true', help='iPod compatibility mode')
@@ -28,7 +28,7 @@ def parse_arguments():
     return args
 
 def is_audio_file(file_path):
-    audio_extensions = {'.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a'}
+    audio_extensions = {'.mp3', '.wav', '.flac', '.aac', '.opus', '.m4a'}
     return file_path.suffix.lower() in audio_extensions
 
 def ffmpeg_has_aac_at(ffmpeg_path):
@@ -60,7 +60,7 @@ def get_codec_params(codec, metadata, ipod, ffmpeg_path):
         'alac': f"-c:a alac {video_params} {'-sample_fmt s16p -ar 44100 -movflags +faststart -disposition:a 0' if ipod else ''}",
         'flac': f"-c:a flac {video_params}",
         'wav': "-c:a pcm_s16le -vn",
-        'ogg': "-c:a libvorbis -q:a 8 -vn",
+        'opus': "-c:a libopus -b:a 128k -vn",
         'aac': f"-c:a {ffmpeg_has_aac_at(ffmpeg_path)} -b:a 256k {video_params}",
         'mp3': "-c:a libmp3lame -q:a 0",
     }
@@ -84,7 +84,7 @@ def convert_file(ffmpeg_path, input_file_path, output_file_path, codec_params, d
             print(f"Error converting file {input_file_path}: {e}")
 
 def process_files(input_dir, output_dir, codec, ffmpeg_path, dry_run, ipod):
-    codec_extension = {'alac': '.m4a', 'flac': '.flac', 'wav': '.wav', 'ogg': '.ogg', 'aac': '.m4a', 'mp3': '.mp3'}
+    codec_extension = {'alac': '.m4a', 'flac': '.flac', 'wav': '.wav', 'opus': '.opus', 'aac': '.m4a', 'mp3': '.mp3'}
     with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
         futures = []
         for file_path in Path(input_dir).rglob('*'):
