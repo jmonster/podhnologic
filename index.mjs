@@ -84,13 +84,14 @@ const getCodecParams = (codec, metadata, ipod) => {
   const videoParams = '-c:v copy'
 
   // Codec-specific parameters
-  const ipodParams = ipod ? '-sample_fmt s16p -ar 44100 -movflags +faststart -disposition:a 0' : ''
+  const ipod_alacParams = ipod ? '-sample_fmt s16p -ar 44100 -movflags +faststart -disposition:a 0' : ''
+  const ipod_aacParams = ipod ? '-ar 44100 -movflags +faststart -disposition:a 0' : ''
   const codecParams = {
-    alac: `-c:a alac ${videoParams} ${ipodParams}`, // ALAC codec params with video copy
+    alac: `-c:a alac ${videoParams} ${ipod_alacParams}`, // ALAC codec params with video copy
+    aac: `-c:a ${ffmpegHasAACAT() ? 'aac_at' : 'aac'} -b:a 256k ${videoParams} ${ipod_aacParams}`,
     flac: `-c:a flac ${videoParams}`,
     wav: '-c:a pcm_s16le -vn',
     opus: '-c:a libopus -b:a 128k -vn',
-    aac: `-c:a ${ffmpegHasAACAT() ? 'aac_at' : 'aac'} -b:a 256k ${videoParams} ${ipodParams}`,
     mp3: '-c:a libmp3lame -q:a 0',
   }
 
