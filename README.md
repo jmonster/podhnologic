@@ -1,9 +1,9 @@
-# jTunes
+# podhnologic
 
 Convert your music collection to another format; e.g. iPod
 
 ```sh
-npx github:jmonster/jTunes \
+npx github:jmonster/podhnologic \
 --input "/path/to/input" \
 --output "/path/to/output" \
 --ipod
@@ -41,7 +41,7 @@ This tool is simple and opinionated. I assume you want the best possible but pra
 
 Runs `X`-times faster than iTunes while utilizing the same encoder on a machine with `X` idle cores
 
-<img width="434" alt="image" src="https://github.com/jmonster/jTunes/assets/368767/8a50948c-1e63-441d-8df8-ea3bebd75895">
+<img width="434" alt="image" src="https://github.com/jmonster/podhnologic/assets/368767/8a50948c-1e63-441d-8df8-ea3bebd75895">
 
 # resumable
 
@@ -59,7 +59,7 @@ There are no other dependencies.
 # options
 
 ```sh
-npx github:jmonster/jTunes \
+npx github:jmonster/podhnologic \
   --input <inputDir> \
   --output <outputDir> \
   --codec [flac|alac|aac|wav|mp3|opus] \
@@ -71,21 +71,21 @@ npx github:jmonster/jTunes \
 ### examples
 
 ```sh
-npx github:jmonster/jTunes \
+npx github:jmonster/podhnologic \
 --input "/path/to/input" \
 --output "/path/to/output" \
 --ipod
 ```
 
 ```sh
-npx github:jmonster/jTunes \
+npx github:jmonster/podhnologic \
 --input "/path/to/input" \
 --output "/path/to/output" \
 --codec alac
 ```
 
 ```sh
-npx github:jmonster/jTunes \
+npx github:jmonster/podhnologic \
 --input "/path/to/input" \
 --output "/path/to/output" \
 --ipod \
@@ -103,6 +103,19 @@ Follow the instructions for your operating system to install FFmpeg:
 - **Linux**: [Install FFmpeg on Linux](https://ffmpeg.org/download.html#build-linux)
 - **Windows**: [Install FFmpeg on Windows](https://ffmpeg.org/download.html#build-windows)
 - **macOS**: [Install FFmpeg on macOS](https://ffmpeg.org/download.html#build-mac)
+
+## tips
+
+For iPod, just use 256-kbps AAC and be done with it.
+
+- battery life
+  - less storage accesses / wake ups
+  - hardware is optimized for decoding aac
+- storage
+  - files are significantly smaller
+- transparent
+  - 256 aac is not lossless, but it is transparent - If you can tell the difference AND care about being able to subtley barely tell a difference then, by all means, `--codec alac` is for you.
+    .
 
 # disclaimer
 
