@@ -1,6 +1,6 @@
 {
-  "name": "jtunes",
-  "version": "1.1.0",
+  "name": "podhnologic",
+  "version": "1.0.0",
   "type": "module",
   "bin": "index.mjs",
   "description": "converts your music collection to another format; e.g. iPod",
