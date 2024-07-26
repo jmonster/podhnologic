@@ -51,8 +51,9 @@ Checks if the output file already exists before converting. If a big job gets in
 
 ## requirements
 
-- [ffmpeg](https://ffmpeg.org) must be installed, or at least located locally, such that you can specify with the path via `--ffmpeg`.
-- [node.js](https://nodejs.org) is used to execute and run this tool
+- [ffmpeg](https://ffmpeg.org) must be installed, or at least located locally, such that you can specify with the path via `--ffmpeg`. If an installed version is found it will automatically be used.
+- [node.js](https://nodejs.org) is used to execute and run this tool.
+  - I initially planned to distribute a self-contained binary, but dealing with modern security / code signing is not worth our time. Be glad you can easily inspect/modify this code.
 
 There are no other dependencies.
 
