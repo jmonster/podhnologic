@@ -1,6 +1,16 @@
-# podhnologic
 
-Convert your music collection to another format; e.g. iPod
+<p align="center" >
+  <b>podhnologic</b><br/>
+  Convert your music collection to another format; e.g. iPod
+<br/><br />
+  <img alt="hero image" src="https://github.com/user-attachments/assets/a9383166-c1e6-432e-9658-9044b13725bc" width="256" height="256">
+</p>
+
+
+
+
+
+
 
 ```sh
 npx github:jmonster/podhnologic \
