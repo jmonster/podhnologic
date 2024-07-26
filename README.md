@@ -1,16 +1,9 @@
-
 <p align="center" >
   <b>podhnologic</b><br/>
   Convert your music collection to another format; e.g. iPod
 <br/><br />
   <img alt="hero image" src="https://github.com/user-attachments/assets/a9383166-c1e6-432e-9658-9044b13725bc" width="256" height="256">
 </p>
-
-
-
-
-
-
 
 ```sh
 npx github:jmonster/podhnologic \
@@ -41,7 +34,7 @@ This tool is simple and opinionated. I assume you want the best possible but pra
 
 # iPod
 
-- `--ipod` is shorthand for 256-kbps AAC
+- `--ipod` is shorthand for 256 kbps AAC
 - if `--codec alac` is also specified, it'll be down-sampled to 16-bit 44.1kHz to (allegedly) prevent track skipping.
 - Moves the moov atom at the beginning of the file, which is useful for streaming and playback compatibility.
 - Eliminates all metadata except for `title`, `artist`, `album`, `date`, `track`, `genre`, and `disc`
@@ -117,7 +110,7 @@ Follow the instructions for your operating system to install FFmpeg:
 
 ## tips
 
-For iPod, just use 256-kbps AAC and be done with it.
+For iPod, just use `--ipod` (256-kbps AAC) and be done with it.
 
 - battery life
   - less storage accesses / wake ups
@@ -125,8 +118,8 @@ For iPod, just use 256-kbps AAC and be done with it.
 - storage
   - files are significantly smaller
 - transparent
-  - 256 aac is not lossless, but it is transparent - If you can tell the difference AND care about being able to subtley barely tell a difference then, by all means, `--codec alac` is for you.
-    .
+  - 256 AAC is **not** lossless, but it is transparent
+    - _If you can tell the difference **and** care about that difference then, by all means, `--codec alac` is for you_
 
 # disclaimer
 
