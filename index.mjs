@@ -71,7 +71,7 @@ const getCodecParams = (codec, metadata, ipod) => {
   }, {})
 
   // Desired metadata keys in lowercase
-  const desiredMetadataKeys = ['title', 'artist', 'album', 'date', 'track', 'genre', 'disc']
+  const desiredMetadataKeys = ['title', 'artist', 'album', 'date', 'track', 'genre', 'disc', 'lyrics']
 
   // Construct metadata string for desired attributes
   const desiredMetadata = desiredMetadataKeys
