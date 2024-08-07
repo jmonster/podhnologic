@@ -1,8 +1,7 @@
 {
   "name": "podhnologic",
-  "version": "1.0.0",
-  "type": "module",
-  "bin": "index.mjs",
+  "version": "1.1.0",
+  "bin": "index.js",
   "description": "converts your music collection to another format; e.g. iPod",
   "keywords": [
     "ipod",
