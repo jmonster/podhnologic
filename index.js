@@ -12,10 +12,11 @@ const ffmpegPath = argv.includes('--ffmpeg') ? argv[argv.indexOf('--ffmpeg') + 1
 const dryRun = argv.includes('--dry-run')
 const ipod = argv.includes('--ipod')
 const codec = argv.includes('--codec') ? argv[argv.indexOf('--codec') + 1] : ipod ? 'aac' : null
+const noLyrics = argv.includes('--no-lyrics')
 
 if (!inputDir || !outputDir || !codec) {
   console.error(
-    'Usage:\n --input <inputDir>\n --output <outputDir>\n --codec [flac|alac|aac|opus|wav|mp3]\n [--ipod]\n [--ffmpeg /opt/homebrew/bin/ffmpeg]\n [--dry-run]'
+    'Usage:\n --input <inputDir>\n --output <outputDir>\n --codec [flac|alac|aac|opus|wav|mp3]\n [--ipod]\n [--no-lyrics]\n [--ffmpeg /opt/homebrew/bin/ffmpeg]\n [--dry-run]'
   )
   process.exit(1)
 }
@@ -66,7 +67,10 @@ const getCodecParams = (codec, metadata, ipod) => {
     return acc
   }, {})
 
-  const desiredMetadataKeys = ['title', 'artist', 'album', 'date', 'track', 'genre', 'disc', 'lyrics']
+  const desiredMetadataKeys = ['title', 'artist', 'album', 'date', 'track', 'genre', 'disc']
+  if (!noLyrics) {
+    desiredMetadataKeys.push('lyrics')
+  }
 
   const desiredMetadata = desiredMetadataKeys
     .map((key) => (normalizedTags[key] ? `-metadata ${key}=${escapeShellArg(normalizedTags[key])}` : ''))
@@ -154,7 +158,7 @@ async function processFiles(inputDir, outputDir) {
         const metadata = await extractMetadata(file)
         const relativePath = path.relative(inputDir, file)
         const outputFilePath = path.join(outputDir, relativePath)
-        const codecParams = getCodecParams(codec, metadata, ipod)
+        const codecParams = getCodecParams(codec, metadata, ipod, noLyrics)
         await convertFile(file, outputFilePath, codecParams)
       } catch (error) {
         console.error(`Failed to process file: ${file}, Error: ${error.message}`)
