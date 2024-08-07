@@ -35,7 +35,8 @@ This tool is simple and opinionated. I assume you want the best possible but pra
 # iPod
 
 - `--ipod` is shorthand for 256 kbps AAC
-- if `--codec alac` is _also_ specified, tracks will be down-sampled to 16-bit 44.1kHz. This is necessary to prevent track skipping on the iPod.
+- if `--codec alac` is _also_ specified, tracks will be down-sampled to 16-bit 44.1kHz.
+  - This prevents track skipping on the iPod.
 - Moves the moov atom at the beginning of the file, which is useful for streaming and playback compatibility.
 - Eliminates all metadata except for `title`, `artist`, `album`, `date`, `track`, `genre`, `disc`, and `lyrics
   - This helps increase the number of track you can fit in memory on an iPod
