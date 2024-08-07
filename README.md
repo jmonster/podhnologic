@@ -38,7 +38,7 @@ This tool is simple and opinionated. I assume you want the best possible but pra
 - if `--codec alac` is _also_ specified, tracks will be down-sampled to 16-bit 44.1kHz.
   - This prevents track skipping on the iPod.
 - Moves the moov atom at the beginning of the file, which is useful for streaming and playback compatibility.
-- Eliminates all metadata except for `title`, `artist`, `album`, `date`, `track`, `genre`, `disc`, and `lyrics
+- Eliminates all metadata except for `title`, `artist`, `album`, `date`, `track`, `genre`, `disc`, and `lyrics`
   - This helps increase the number of track you can fit in memory on an iPod
   - Optionally add `--no-lyrics` to squeeze even more space
 - Album art is preserved
