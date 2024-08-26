@@ -13,10 +13,11 @@ const dryRun = argv.includes('--dry-run')
 const ipod = argv.includes('--ipod')
 const codec = argv.includes('--codec') ? argv[argv.indexOf('--codec') + 1] : ipod ? 'aac' : null
 const noLyrics = argv.includes('--no-lyrics')
+const trimMetadata = argv.includes('--trim-only')
 
-if (!inputDir || !outputDir || !codec) {
+if (!inputDir || !outputDir) {
   console.error(
-    'Usage:\n --input <inputDir>\n --output <outputDir>\n --codec [flac|alac|aac|opus|wav|mp3]\n [--ipod]\n [--no-lyrics]\n [--ffmpeg /opt/homebrew/bin/ffmpeg]\n [--dry-run]'
+    'Usage:\n --input <inputDir>\n --output <outputDir>\n [--codec [flac|alac|aac|opus|wav|mp3]]\n [--ipod]\n [--no-lyrics]\n [--ffmpeg /opt/homebrew/bin/ffmpeg]\n [--trim-only]\n [--dry-run]'
   )
   process.exit(1)
 }
@@ -77,6 +78,12 @@ const getCodecParams = (codec, metadata, ipod) => {
     .filter(Boolean)
     .join(' ')
 
+  // trim only?
+  if (trimMetadata) {
+    // Copy the original file without re-encoding, but only keep desired metadata
+    return `-c copy -map 0 -map_metadata -1 ${desiredMetadata}`
+  }
+
   const baseParams = `-map 0 -map_metadata -1 ${desiredMetadata}`
   const videoParams = '-c:v copy'
 
@@ -104,7 +111,7 @@ async function convertFile(inputFilePath, outputFilePath, codecParams) {
     mp3: '.mp3',
   }
 
-  const outputExtension = codecToFileExtension[codec] || path.extname(inputFilePath)
+  const outputExtension = trimMetadata ? path.extname(inputFilePath) : codecToFileExtension[codec] || path.extname(inputFilePath)
   const outputFilePathWithCodec = outputFilePath.replace(/\.[^/.]+$/, outputExtension)
   const command = `${ffmpegPath} -i "${inputFilePath}" ${codecParams} "${outputFilePathWithCodec}" > /dev/null 2>&1`
 
@@ -158,7 +165,7 @@ async function processFiles(inputDir, outputDir) {
         const metadata = await extractMetadata(file)
         const relativePath = path.relative(inputDir, file)
         const outputFilePath = path.join(outputDir, relativePath)
-        const codecParams = getCodecParams(codec, metadata, ipod, noLyrics)
+        const codecParams = getCodecParams(codec, metadata, ipod)
         await convertFile(file, outputFilePath, codecParams)
       } catch (error) {
         console.error(`Failed to process file: ${file}, Error: ${error.message}`)
