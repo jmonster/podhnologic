@@ -1,6 +1,6 @@
 {
   "name": "podhnologic",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "bin": "index.js",
   "description": "converts your music collection to another format; e.g. iPod",
   "keywords": [
