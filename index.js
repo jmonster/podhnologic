@@ -26,21 +26,20 @@ const audioExtensions = ['.mp3', '.wav', '.flac', '.aac', '.opus', '.m4a']
 
 const isAudioFile = (file) => audioExtensions.includes(path.extname(file).toLowerCase())
 
-const ffmpegHasAACAT = (() => {
-  let cachedResult = null
-  return () => {
-    if (cachedResult === null) {
+const ffmpegHasEncoder = (() => {
+  const cache = {}
+  return (encoder) => {
+    if (cache[encoder] === undefined) {
       try {
-        execSync(`${ffmpegPath} -h encoder=aac_at`, { stdio: 'ignore' })
-        cachedResult = true
+        execSync(`${ffmpegPath} -h encoder=${encoder}`, { stdio: 'ignore' })
+        cache[encoder] = true
       } catch {
-        cachedResult = false
+        cache[encoder] = false
       }
     }
-    return cachedResult
+    return cache[encoder]
   }
 })()
-
 const escapeShellArg = (arg) => {
   if (process.platform === 'win32') {
     // Replace problematic characters for Windows command line
@@ -87,9 +86,17 @@ const getCodecParams = (codec, metadata, ipod) => {
 
   const ipod_alacParams = ipod ? '-sample_fmt s16p -ar 44100 -movflags +faststart -disposition:a 0' : ''
   const ipod_aacParams = ipod ? '-ar 44100 -movflags +faststart -disposition:a 0' : ''
+
+  let aacCodec = 'aac'
+  if (ffmpegHasEncoder('aac_at')) {
+    aacCodec = 'aac_at'
+  } else if (ffmpegHasEncoder('libfdk_aac')) {
+    aacCodec = 'libfdk_aac'
+  }
+
   const codecParams = {
     alac: `-c:a alac ${videoParams} ${ipod_alacParams}`,
-    aac: `-c:a ${ffmpegHasAACAT() ? 'aac_at' : 'aac'} -b:a 256k ${videoParams} ${ipod_aacParams}`,
+    aac: `-c:a ${aacCodec} -b:a 256k ${videoParams} ${ipod_aacParams}`,
     flac: `-c:a flac ${videoParams}`,
     wav: '-c:a pcm_s16le -vn',
     opus: '-c:a libopus -b:a 128k -vn',
