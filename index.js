@@ -31,8 +31,9 @@ const ffmpegHasEncoder = (() => {
   return (encoder) => {
     if (cache[encoder] === undefined) {
       try {
-        execSync(`${ffmpegPath} -h encoder=${encoder}`, { stdio: 'ignore' })
-        cache[encoder] = true
+        const result = execSync(`${ffmpegPath} -h encoder=${encoder}`, { encoding: 'utf8' })
+        // Check if the output contains "Encoder" followed by the encoder name
+        cache[encoder] = result.includes(`Encoder ${encoder}`)
       } catch {
         cache[encoder] = false
       }
