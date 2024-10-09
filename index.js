@@ -94,6 +94,8 @@ const getCodecParams = (codec, metadata, ipod) => {
   return `${baseParams} ${codecParams[codec]}`
 }
 
+const pathQuote = process.platform === 'win32' ? '"' : "'"
+
 async function convertFile(inputFilePath, outputFilePath, codecParams) {
   const codecToFileExtension = {
     alac: '.m4a',
@@ -106,7 +108,10 @@ async function convertFile(inputFilePath, outputFilePath, codecParams) {
 
   const outputExtension = codecToFileExtension[codec] || path.extname(inputFilePath)
   const outputFilePathWithCodec = outputFilePath.replace(/\.[^/.]+$/, outputExtension)
-  const command = `${ffmpegPath} -i "${inputFilePath}" ${codecParams} "${outputFilePathWithCodec}" > /dev/null 2>&1`
+
+  // Removing output redirection for better cross-platform compatibility
+  const redirectOutput = process.platform === 'win32' ? 'NUL' : '/dev/null'
+  const command = `${ffmpegPath} -i ${pathQuote}${inputFilePath}${pathQuote} ${codecParams} ${pathQuote}${outputFilePathWithCodec}${pathQuote} > ${redirectOutput} 2>&1`
 
   if (dryRun) {
     console.log(`[dry run] converting ${inputFilePath} to ${outputFilePath} with the following command`)
