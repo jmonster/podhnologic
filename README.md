@@ -6,7 +6,7 @@
 </p>
 
 ```sh
-npx github:jmonster/podhnologic \
+npx podhnologic \
 --input "/path/to/input" \
 --output "/path/to/output" \
 --ipod
