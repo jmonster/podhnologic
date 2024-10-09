@@ -43,9 +43,14 @@ const ffmpegHasAACAT = (() => {
 
 const escapeShellArg = (arg) => {
   if (process.platform === 'win32') {
-    return `"${arg.replace(/(["%])/g, '^$1')}"`
+    // Replace problematic characters for Windows command line
+    return `"${arg
+      .replace(/(["%])/g, '^$1')
+      .replace(/\n/g, '\\n')
+      .replace(/\r/g, '\\r')}"`
   }
-  return `"${arg.replace(/(["$`\\])/g, '\\$1')}"`
+  // For Posix systems, more comprehensive escaping
+  return `'${arg.replace(/'/g, `'\\''`).replace(/\n/g, '\\n')}'`
 }
 
 const extractMetadata = (filePath) => {
