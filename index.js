@@ -31,7 +31,7 @@ const ffmpegHasEncoder = (() => {
   return (encoder) => {
     if (cache[encoder] === undefined) {
       try {
-        const result = execSync(`${ffmpegPath} -h encoder=${encoder}`, { encoding: 'utf8' })
+        const result = execSync(`${ffmpegPath} -h encoder=${encoder}`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] })
         // Check if the output contains "Encoder" followed by the encoder name
         cache[encoder] = result.includes(`Encoder ${encoder}`)
       } catch {
@@ -43,20 +43,19 @@ const ffmpegHasEncoder = (() => {
 })()
 const escapeShellArg = (arg) => {
   if (process.platform === 'win32') {
-    // Replace problematic characters for Windows command line
-    return `"${arg
-      .replace(/(["%])/g, '^$1')
-      .replace(/\n/g, '\\n')
-      .replace(/\r/g, '\\r')}"`
+    // For Windows, use double quotes and escape problematic characters
+    return `"${arg.replace(/"/g, '""').replace(/%/g, '"%"')}"`
+  } else {
+    // For Unix-like systems, use single quotes
+    return `'${arg.replace(/'/g, "'\\''")}'`
   }
-  // For Posix systems, more comprehensive escaping
-  return `'${arg.replace(/'/g, `'\\''`).replace(/\n/g, '\\n')}'`
 }
 
 const extractMetadata = (filePath) => {
   return new Promise((resolve, reject) => {
     const ffprobePath = ffmpegPath.replace(/ffmpeg$/, 'ffprobe')
-    exec(`"${ffprobePath}" -v quiet -print_format json -show_format -show_streams "${filePath}"`, (error, stdout) => {
+    const command = `${escapeShellArg(ffprobePath)} -v quiet -print_format json -show_format -show_streams ${escapeShellArg(filePath)}`
+    exec(command, (error, stdout) => {
       if (error) {
         reject(error)
       } else {
@@ -80,13 +79,12 @@ const getCodecParams = (codec, metadata, ipod) => {
   const desiredMetadata = desiredMetadataKeys
     .map((key) => (normalizedTags[key] ? `-metadata ${key}=${escapeShellArg(normalizedTags[key])}` : ''))
     .filter(Boolean)
-    .join(' ')
 
-  const baseParams = `-map 0 -map_metadata -1 ${desiredMetadata}`
-  const videoParams = '-c:v copy'
+  const baseParams = ['-map', '0', '-map_metadata', '-1', ...desiredMetadata]
+  const videoParams = ['-c:v', 'copy']
 
-  const ipod_alacParams = ipod ? '-sample_fmt s16p -ar 44100 -movflags +faststart -disposition:a 0' : ''
-  const ipod_aacParams = ipod ? '-ar 44100 -movflags +faststart -disposition:a 0' : ''
+  const ipod_alacParams = ipod ? ['-sample_fmt', 's16p', '-ar', '44100', '-movflags', '+faststart', '-disposition:a', '0'] : []
+  const ipod_aacParams = ipod ? ['-ar', '44100', '-movflags', '+faststart', '-disposition:a', '0'] : []
 
   let aacCodec = 'aac'
   if (ffmpegHasEncoder('aac_at')) {
@@ -96,15 +94,15 @@ const getCodecParams = (codec, metadata, ipod) => {
   }
 
   const codecParams = {
-    alac: `-c:a alac ${videoParams} ${ipod_alacParams}`,
-    aac: `-c:a ${aacCodec} -b:a 256k ${videoParams} ${ipod_aacParams}`,
-    flac: `-c:a flac ${videoParams}`,
-    wav: '-c:a pcm_s16le -vn',
-    opus: '-c:a libopus -b:a 128k -vn',
-    mp3: '-c:a libmp3lame -q:a 0',
+    alac: ['-c:a', 'alac', ...videoParams, ...ipod_alacParams],
+    aac: ['-c:a', aacCodec, '-b:a', '256k', ...videoParams, ...ipod_aacParams],
+    flac: ['-c:a', 'flac', ...videoParams],
+    wav: ['-c:a', 'pcm_s16le', '-vn'],
+    opus: ['-c:a', 'libopus', '-b:a', '128k', '-vn'],
+    mp3: ['-c:a', 'libmp3lame', '-q:a', '0'],
   }
 
-  return `${baseParams} ${codecParams[codec]}`
+  return [...baseParams, ...codecParams[codec]]
 }
 
 const pathQuote = process.platform === 'win32' ? '"' : "'"
@@ -122,12 +120,27 @@ async function convertFile(inputFilePath, outputFilePath, codecParams) {
   const outputExtension = codecToFileExtension[codec] || path.extname(inputFilePath)
   const outputFilePathWithCodec = outputFilePath.replace(/\.[^/.]+$/, outputExtension)
 
-  // Removing output redirection for better cross-platform compatibility
   const redirectOutput = process.platform === 'win32' ? 'NUL' : '/dev/null'
-  const command = `${ffmpegPath} -i ${pathQuote}${inputFilePath}${pathQuote} ${codecParams} ${pathQuote}${outputFilePathWithCodec}${pathQuote} > ${redirectOutput} 2>&1`
+
+  // Construct the command carefully
+  const command = [
+    escapeShellArg(ffmpegPath),
+    '-i',
+    escapeShellArg(inputFilePath),
+    ...codecParams.map((param) => {
+      if (param.startsWith('-metadata')) {
+        const [key, value] = param.split('=')
+        return `${key}=${value}`
+      }
+      return param
+    }),
+    escapeShellArg(outputFilePathWithCodec),
+    '>',
+    redirectOutput,
+  ].join(' ')
 
   if (dryRun) {
-    console.log(`[dry run] converting ${inputFilePath} to ${outputFilePath} with the following command`)
+    console.log(`[dry run] converting ${inputFilePath} to ${outputFilePathWithCodec} with the following command`)
     console.log('\x1b[92m%s\x1b[0m', `${command}\n`)
     return
   }
@@ -137,7 +150,8 @@ async function convertFile(inputFilePath, outputFilePath, codecParams) {
     return
   }
 
-  console.debug('\x1b[92m%s\x1b[0m', command, '\n')
+  // console.debug('\x1b[92m%s\x1b[0m', command, '\n')
+  console.log(inputFilePath, '->', outputFilePathWithCodec)
 
   try {
     await fs.promises.mkdir(path.dirname(outputFilePathWithCodec), { recursive: true })
@@ -145,9 +159,10 @@ async function convertFile(inputFilePath, outputFilePath, codecParams) {
       exec(command, (error, stdout, stderr) => {
         if (error) {
           console.error(`Error: ${error.message}`)
+          if (stderr) console.error(`stderr: ${stderr}`)
           reject(new Error(`Conversion failed for ${inputFilePath}`))
         } else {
-          if (stderr) console.error(`Error: ${stderr}`)
+          // if (stderr) console.error(`Warning: ${stderr}`)
           resolve()
         }
       })
