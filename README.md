@@ -66,7 +66,7 @@ There are no other dependencies.
 # options
 
 ```sh
-npx github:jmonster/podhnologic \
+npx podhnologic \
   --input <inputDir> \
   --output <outputDir> \
   --codec [flac|alac|aac|wav|mp3|opus] \
@@ -78,21 +78,21 @@ npx github:jmonster/podhnologic \
 ### examples
 
 ```sh
-npx github:jmonster/podhnologic \
+npx podhnologic \
 --input "/path/to/input" \
 --output "/path/to/output" \
 --ipod
 ```
 
 ```sh
-npx github:jmonster/podhnologic \
+npx podhnologic \
 --input "/path/to/input" \
 --output "/path/to/output" \
 --codec alac
 ```
 
 ```sh
-npx github:jmonster/podhnologic \
+npx podhnologic \
 --input "/path/to/input" \
 --output "/path/to/output" \
 --ipod \
