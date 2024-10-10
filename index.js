@@ -78,7 +78,7 @@ const getCodecParams = (codec, metadata, ipod) => {
   }
 
   const desiredMetadata = desiredMetadataKeys
-    .map((key) => (normalizedTags[key] ? `-metadata ${key}=${escapeShellArg(normalizedTags[key])}` : ''))
+    .map((key) => (normalizedTags[key] ? `-metadata ${key}=${normalizedTags[key]}` : ''))
     .filter(Boolean)
 
   const baseParams = ['-map', '0', '-map_metadata', '-1', ...desiredMetadata]
