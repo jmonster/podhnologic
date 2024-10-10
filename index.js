@@ -5,6 +5,7 @@ const os = require('os')
 const path = require('path')
 const { argv } = require('process')
 const { exec, execSync } = require('child_process')
+const { spawn } = require('child_process')
 
 const inputDir = argv.includes('--input') ? argv[argv.indexOf('--input') + 1] : null
 const outputDir = argv.includes('--output') ? argv[argv.indexOf('--output') + 1] : null
@@ -120,28 +121,24 @@ async function convertFile(inputFilePath, outputFilePath, codecParams) {
   const outputExtension = codecToFileExtension[codec] || path.extname(inputFilePath)
   const outputFilePathWithCodec = outputFilePath.replace(/\.[^/.]+$/, outputExtension)
 
-  const redirectOutput = process.platform === 'win32' ? 'NUL' : '/dev/null'
-
   // Construct the command carefully
-  const command = [
-    escapeShellArg(ffmpegPath),
-    '-i',
-    escapeShellArg(inputFilePath),
-    ...codecParams.map((param) => {
-      if (param.startsWith('-metadata')) {
-        const [key, value] = param.split('=')
-        return `${key}=${value}`
-      }
-      return param
-    }),
-    escapeShellArg(outputFilePathWithCodec),
-    '>',
-    redirectOutput,
-  ].join(' ')
+  const command = ['-i', inputFilePath]
+
+  // Handle metadata and other parameters
+  codecParams.forEach((param) => {
+    if (param.startsWith('-metadata')) {
+      command.push('-metadata')
+      command.push(param.substring(10)) // Push the "key=value" part
+    } else {
+      command.push(param)
+    }
+  })
+
+  command.push(outputFilePathWithCodec)
 
   if (dryRun) {
     console.log(`[dry run] converting ${inputFilePath} to ${outputFilePathWithCodec} with the following command`)
-    console.log('\x1b[92m%s\x1b[0m', `${command}\n`)
+    console.log('\x1b[92m%s\x1b[0m', `${ffmpegPath} ${command.map((arg) => (arg.includes(' ') ? `"${arg}"` : arg)).join(' ')}\n`)
     return
   }
 
@@ -150,19 +147,27 @@ async function convertFile(inputFilePath, outputFilePath, codecParams) {
     return
   }
 
-  // console.debug('\x1b[92m%s\x1b[0m', command, '\n')
   console.log(inputFilePath, '->', outputFilePathWithCodec)
 
   try {
     await fs.promises.mkdir(path.dirname(outputFilePathWithCodec), { recursive: true })
     await new Promise((resolve, reject) => {
-      exec(command, (error, stdout, stderr) => {
-        if (error) {
-          console.error(`Error: ${error.message}`)
-          if (stderr) console.error(`stderr: ${stderr}`)
+      const process = spawn(ffmpegPath, command, {
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+
+      let stderr = ''
+      process.stderr.on('data', (data) => {
+        stderr += data.toString()
+      })
+
+      process.on('close', (code) => {
+        if (code !== 0) {
+          console.error(`FFmpeg process exited with code ${code}`)
+          console.error(`FFmpeg stderr: ${stderr}`)
           reject(new Error(`Conversion failed for ${inputFilePath}`))
         } else {
-          // if (stderr) console.error(`Warning: ${stderr}`)
           resolve()
         }
       })
