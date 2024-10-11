@@ -196,7 +196,7 @@ async function processFiles(inputDir, outputDir) {
         const metadata = await extractMetadata(file)
         const relativePath = path.relative(inputDir, file)
         const outputFilePath = path.join(outputDir, relativePath)
-        const codecParams = getCodecParams(codec, metadata, ipod, noLyrics)
+        const codecParams = getCodecParams(codec, metadata, ipod)
         await convertFile(file, outputFilePath, codecParams)
       } catch (error) {
         console.error(`Failed to process file: ${file}, Error: ${error.message}`)
