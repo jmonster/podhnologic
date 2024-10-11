@@ -81,22 +81,23 @@ npx podhnologic \
 npx podhnologic \
 --input "/path/to/input" \
 --output "/path/to/output" \
---ipod
+--ipod # optional
 ```
 
 ```sh
 npx podhnologic \
 --input "/path/to/input" \
 --output "/path/to/output" \
---codec alac
+--ipod \ # optional
+--codec alac # optional
 ```
 
 ```sh
 npx podhnologic \
 --input "/path/to/input" \
 --output "/path/to/output" \
---ipod \
---ffmpeg "/opt/homebrew/bin/ffmpeg"
+--ipod \ # optional
+--ffmpeg "/opt/homebrew/bin/ffmpeg" # optional
 ```
 
 ## node.js Installation
