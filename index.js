@@ -4,9 +4,9 @@ const fs = require('fs')
 const os = require('os')
 const path = require('path')
 const { argv } = require('process')
-const { exec, execSync } = require('child_process')
-const { spawn } = require('child_process')
+const { exec, execSync, spawn } = require('child_process')
 
+// args
 const inputDir = argv.includes('--input') ? argv[argv.indexOf('--input') + 1] : null
 const outputDir = argv.includes('--output') ? argv[argv.indexOf('--output') + 1] : null
 const ffmpegPath = argv.includes('--ffmpeg') ? argv[argv.indexOf('--ffmpeg') + 1] : 'ffmpeg'
@@ -23,6 +23,7 @@ if (!inputDir || !outputDir || !codec) {
 }
 
 const numThreads = os.cpus().length
+
 const audioExtensions = ['.mp3', '.wav', '.flac', '.aac', '.opus', '.m4a']
 
 const isAudioFile = (file) => audioExtensions.includes(path.extname(file).toLowerCase())
@@ -42,6 +43,7 @@ const ffmpegHasEncoder = (() => {
     return cache[encoder]
   }
 })()
+
 const escapeShellArg = (arg) => {
   if (process.platform === 'win32') {
     // For Windows, use double quotes and escape problematic characters
@@ -106,8 +108,6 @@ const getCodecParams = (codec, metadata, ipod) => {
   return [...baseParams, ...codecParams[codec]]
 }
 
-const pathQuote = process.platform === 'win32' ? '"' : "'"
-
 async function convertFile(inputFilePath, outputFilePath, codecParams) {
   const codecToFileExtension = {
     alac: '.m4a',
@@ -117,11 +117,8 @@ async function convertFile(inputFilePath, outputFilePath, codecParams) {
     aac: '.m4a',
     mp3: '.mp3',
   }
-
   const outputExtension = codecToFileExtension[codec] || path.extname(inputFilePath)
   const outputFilePathWithCodec = outputFilePath.replace(/\.[^/.]+$/, outputExtension)
-
-  // Construct the command carefully
   const command = ['-i', inputFilePath]
 
   // Handle metadata and other parameters
