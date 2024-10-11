@@ -130,4 +130,4 @@ This software is provided "as is", without warranty of any kind, express or impl
 
 # license
 
-This project is licensed under the Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License. See the [LICENSE](LICENSE) file for more details.
+This project is licensed under the Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License. See the [LICENSE](LICENSE.md) file for more details.
