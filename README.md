@@ -43,7 +43,7 @@ This tool is simple and opinionated. I assume you want the best possible but pra
   - Optionally add `--no-lyrics` to squeeze even more space
 - Album art is preserved
 
-# performannt
+# performant
 
 Runs `X`-times faster than iTunes while utilizing the same encoder on a machine with `X` idle cores
 
