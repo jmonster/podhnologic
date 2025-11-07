@@ -5,17 +5,49 @@
   <img alt="hero image" src="https://github.com/user-attachments/assets/a9383166-c1e6-432e-9658-9044b13725bc" width="256" height="256">
 </p>
 
+# ✨ Version 3.0 - Now Self-Contained!
+
+**New in v3.0:**
+- 🚀 **Single binary** - No Node.js required!
+- 💬 **Interactive mode** - Friendly prompts guide you through setup
+- 💾 **Saves your settings** - Configuration persisted in `~/.podhnologic/config.json`
+- 📦 **Auto-downloads ffmpeg** - Manages ffmpeg automatically in `~/.podhnologic/bin/`
+- 🔄 **Cross-platform** - Supports Linux (amd64/arm64), macOS (Intel/Apple Silicon), and Windows
+- ⚡ **Efficient & resumable** - Same great performance, now in Go
+
+## Quick Start
+
+### Interactive Mode (Recommended)
+
 ```sh
-npx podhnologic \
---input "/path/to/input" \
---output "/path/to/output" \
---ipod
+# Download and run - it will prompt you for everything
+./podhnologic
+
+# Or force interactive mode
+./podhnologic --interactive
+```
+
+The interactive mode will:
+1. Prompt for input/output directories
+2. Let you choose your target codec
+3. Ask about iPod optimizations
+4. Save your preferences for next time
+5. Optionally start conversion immediately
+
+### Command-Line Mode
+
+```sh
+./podhnologic \
+  --input "/path/to/input" \
+  --output "/path/to/output" \
+  --ipod
 ```
 
 # what?
 
-- A tool to convert your music collection from A to B
-- Written for and used by me to convert my FLAC library to ALAC + 256 AAC
+- A self-contained tool to convert your music collection from A to B
+- Written in Go for maximum performance and portability
+- Originally created to convert FLAC libraries to ALAC + 256 AAC for iPods
 
 # why?
 
@@ -30,7 +62,7 @@ This tool is simple and opinionated. I assume you want the best possible but pra
 - `aac`: 256kbps w/Apple's encoder (where available)
 - `opus`: 128kbps
 - `mp3`: 320kbps
-- `wav`: pcm_s16le (should we be doing something different?)
+- `wav`: pcm_s16le
 
 # iPod
 
@@ -53,77 +85,178 @@ Runs `X`-times faster than iTunes while utilizing the same encoder on a machine 
 
 Checks if the output file already exists before converting. If a big job gets interrupted, just re-run the same command and the files that are already done will be skipped.
 
-# how?
+# installation
 
-## requirements
+## Download Pre-built Binary
 
-- [ffmpeg](https://ffmpeg.org) must be installed, or at least located locally, such that you can specify with the path via `--ffmpeg`. If an installed version is found it will automatically be used.
-- [node.js](https://nodejs.org) is used to execute and run this tool.
-  - I initially planned to distribute a self-contained binary, but dealing with modern security / code signing is not worth our time. Be glad you can easily inspect/modify this code.
+Download the latest release for your platform from the [Releases](https://github.com/jmonster/podhnologic/releases) page:
 
-There are no other dependencies.
+- **Linux (amd64)**: `podhnologic-linux-amd64`
+- **Linux (arm64)**: `podhnologic-linux-arm64`
+- **macOS (Intel)**: `podhnologic-darwin-amd64`
+- **macOS (Apple Silicon)**: `podhnologic-darwin-arm64`
+- **Windows**: `podhnologic-windows-amd64.exe`
 
-# options
+Make it executable (Linux/macOS):
+```sh
+chmod +x podhnologic-*
+sudo mv podhnologic-* /usr/local/bin/podhnologic
+```
+
+## Build from Source
+
+Requires [Go 1.21+](https://golang.org/dl/)
 
 ```sh
-npx podhnologic \
+git clone https://github.com/jmonster/podhnologic.git
+cd podhnologic
+make build
+
+# Optional: Install to /usr/local/bin
+sudo make install
+```
+
+### Build for all platforms
+
+```sh
+make build-all
+```
+
+This creates binaries in the `build/` directory for:
+- Linux (amd64, arm64)
+- macOS (amd64, arm64)
+- Windows (amd64)
+
+## ffmpeg
+
+The tool will automatically:
+1. Check if ffmpeg is installed in your PATH
+2. If not found, download a static build to `~/.podhnologic/bin/`
+3. Use the downloaded version for all conversions
+
+You can also specify a custom ffmpeg path:
+```sh
+./podhnologic --ffmpeg "/opt/homebrew/bin/ffmpeg"
+```
+
+**Note for macOS users**: If auto-download doesn't work, install ffmpeg via Homebrew:
+```sh
+brew install ffmpeg
+```
+
+# usage
+
+## Interactive Mode
+
+Just run the binary without arguments:
+
+```sh
+podhnologic
+```
+
+You'll be prompted for:
+- Input directory
+- Output directory
+- Target codec
+- iPod optimizations
+- Lyrics handling
+- Custom ffmpeg path (optional)
+
+Your choices are saved to `~/.podhnologic/config.json` and will be used as defaults next time.
+
+## Command-Line Mode
+
+### All Options
+
+```sh
+podhnologic \
   --input <inputDir> \
   --output <outputDir> \
   --codec [flac|alac|aac|wav|mp3|opus] \
   [--ipod] \
-  [--ffmpeg /opt/homebrew/bin/ffmpeg] \
+  [--no-lyrics] \
+  [--ffmpeg /path/to/ffmpeg] \
   [--dry-run]
 ```
 
-### examples
+### Examples
 
+Basic iPod conversion (256kbps AAC):
 ```sh
-npx podhnologic \
---input "/path/to/input" \
---output "/path/to/output" \
---ipod # optional
+podhnologic \
+  --input "/path/to/input" \
+  --output "/path/to/output" \
+  --ipod
 ```
 
+iPod with ALAC (lossless, down-sampled):
 ```sh
-npx podhnologic \
---input "/path/to/input" \
---output "/path/to/output" \
---ipod \ # optional
---codec alac # optional
+podhnologic \
+  --input "/path/to/input" \
+  --output "/path/to/output" \
+  --ipod \
+  --codec alac
 ```
 
+Custom ffmpeg path:
 ```sh
-npx podhnologic \
---input "/path/to/input" \
---output "/path/to/output" \
---ipod \ # optional
---ffmpeg "/opt/homebrew/bin/ffmpeg" # optional
+podhnologic \
+  --input "/path/to/input" \
+  --output "/path/to/output" \
+  --ipod \
+  --ffmpeg "/opt/homebrew/bin/ffmpeg"
 ```
 
-## node.js Installation
+Dry run (preview what will happen):
+```sh
+podhnologic \
+  --input "/path/to/input" \
+  --output "/path/to/output" \
+  --codec aac \
+  --dry-run
+```
 
-Follow the instructions for your operating system to [install Node.js](https://nodejs.org/en/download/prebuilt-installer/)
+## Configuration
 
-## ffmpeg Installation
+Settings are stored in `~/.podhnologic/config.json`:
 
-Follow the instructions for your operating system to install FFmpeg:
+```json
+{
+  "input_dir": "/path/to/music",
+  "output_dir": "/path/to/converted",
+  "codec": "aac",
+  "ipod": true,
+  "no_lyrics": false,
+  "ffmpeg_path": ""
+}
+```
 
-- **Linux**: [Install FFmpeg on Linux](https://ffmpeg.org/download.html#build-linux)
-- **Windows**: [Install FFmpeg on Windows](https://ffmpeg.org/download.html#build-windows)
-- **macOS**: [Install FFmpeg on macOS](https://ffmpeg.org/download.html#build-mac)
+You can edit this file manually or use interactive mode to update it.
 
 ## tips
 
 For iPod, just use `--ipod` (256-kbps AAC) and be done with it.
 
-- battery life
+- **battery life**
   - less storage accesses / wake ups
   - hardware is optimized for decoding aac
-- storage
+- **storage**
   - files are significantly smaller
-- transparent
+- **transparent**
   - 256 AAC is **not** lossless, but it is transparent
     - _If you can tell the difference **and** care about that difference then, by all means, `--codec alac` is for you_
+
+# migration from v2.x (Node.js)
+
+If you were using the Node.js version:
+
+1. **Build or download** the new Go binary
+2. **Run it once** in interactive mode to set up your configuration
+3. **Same directories work** - the conversion logic is identical
+4. **Resume support** - existing converted files will be skipped automatically
+5. **Uninstall old version** (optional): `npm uninstall -g podhnologic`
+
+Your existing converted files are fully compatible. The new version will skip them just like the old one did.
 
 # disclaimer
 
