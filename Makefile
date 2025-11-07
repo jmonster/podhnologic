@@ -1,5 +1,8 @@
 # Makefile for podhnologic
 
+# Ensure homebrew Go is in PATH
+export PATH := /opt/homebrew/bin:/usr/local/bin:$(PATH)
+
 # Binary name
 BINARY_NAME=podhnologic
 
