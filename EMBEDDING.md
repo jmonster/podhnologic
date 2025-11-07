@@ -61,39 +61,6 @@ As of version 3.0, podhnologic embeds static FFmpeg binaries directly into the e
 ### Updated Logic
 - `main.go:ensureFFmpeg()` - Updated to prioritize embedded binaries
 
-## Benefits
-
-✅ **Zero External Dependencies** - No need to install FFmpeg
-✅ **Consistent Experience** - Same FFmpeg version across all platforms
-✅ **Simplified Distribution** - Single executable to distribute
-✅ **Offline Capable** - Works without internet connection
-✅ **Version Control** - FFmpeg version bundled with each release
-
-## Trade-offs
-
-⚠️ **Larger Binary Size** - Executables are 150-380MB vs ~10-15MB without embedding
-⚠️ **Build Complexity** - Requires downloading binaries before building
-⚠️ **Update Cycle** - FFmpeg updates require rebuilding and redistributing
-
-## Why This Approach?
-
-We chose **embedded static binaries** over alternatives because:
-
-### vs CGo + Dynamic Linking
-- ✅ Maintains single-binary distribution
-- ✅ Simple cross-compilation
-- ✅ No platform-specific library dependencies
-
-### vs External Download Only
-- ✅ Works offline
-- ✅ No network failure points
-- ✅ Faster first-run experience
-
-### vs No Embedding (Current v2.x)
-- ✅ Better UX (no installation steps)
-- ✅ More reliable (no PATH issues)
-- ✅ Truly portable
-
 ## Developer Guide
 
 ### Building with Embedded Binaries
