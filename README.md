@@ -12,6 +12,17 @@ npx podhnologic \
 --ipod
 ```
 
+## 🌐 Browser Version Available!
+
+**New:** Run podhnologic entirely in your browser with zero installation!
+
+- ✅ No FFmpeg installation required
+- ✅ No Node.js required
+- ✅ 100% private (all processing happens locally)
+- ✅ Full feature parity with CLI version
+
+**[See browser/README.md for details](browser/README.md)**
+
 # what?
 
 - A tool to convert your music collection from A to B
@@ -55,7 +66,19 @@ Checks if the output file already exists before converting. If a big job gets in
 
 # how?
 
-## requirements
+Choose your version:
+
+## 🖥️ CLI Version (this page)
+
+Best for: Large libraries, maximum performance, Apple AAC encoder on macOS
+
+## 🌐 Browser Version ([see here](browser/README.md))
+
+Best for: Quick conversions, no installation hassle, any OS with Chrome/Edge
+
+---
+
+## CLI requirements
 
 - [ffmpeg](https://ffmpeg.org) must be installed, or at least located locally, such that you can specify with the path via `--ffmpeg`. If an installed version is found it will automatically be used.
 - [node.js](https://nodejs.org) is used to execute and run this tool.

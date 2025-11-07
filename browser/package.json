@@ -1,0 +1,21 @@
+{
+  "name": "podhnologic-browser",
+  "version": "1.0.0",
+  "description": "Browser-based music converter using FFmpeg.wasm",
+  "type": "module",
+  "scripts": {
+    "dev": "npx http-server . -p 8080 -c-1 --cors",
+    "start": "npm run dev"
+  },
+  "keywords": [
+    "ffmpeg",
+    "wasm",
+    "audio",
+    "converter",
+    "browser",
+    "ipod"
+  ],
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}
