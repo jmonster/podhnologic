@@ -2,6 +2,79 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.0.0] - 2024-11-07
+
+### 🎨 Major UX Overhaul
+
+Complete redesign of the interactive mode with beautiful TUI, embedded binaries, and instant configuration.
+
+### Added
+
+- **Beautiful ASCII Art Logo**: Bold PODHNOLOGIC title with gradient colors (cyan → purple → blue)
+- **Quick Config Interface**: See all settings at once with keyboard shortcuts
+  - `[I]` - Change Input Directory
+  - `[O]` - Change Output Directory
+  - `[C]` - Change Codec
+  - `[P]` - Toggle iPod Mode (instant!)
+  - `[L]` - Toggle Lyrics Stripping (instant!)
+  - `[Enter]` - Start Conversion
+  - `[Q]` - Quit
+- **Visual Directory Picker**: Bubble Tea-powered browser with arrow key navigation
+- **Embedded FFmpeg Binaries**: Static binaries bundled in executable
+  - Platform-specific embedding (only target platform included)
+  - Automatic extraction on first run to `~/.podhnologic/bin/`
+  - Binary sizes: macOS ~162MB, Linux ~297-373MB, Windows ~372MB
+- **Auto-Save**: All configuration changes saved immediately
+- **Colored Output**: Success (green), error (red), info (cyan), warning (yellow)
+- **Rainbow Music Notes**: Colorful musical decorations in banner
+
+### Changed
+
+- **Interactive Mode Redesigned**: Shows current config instead of prompting every time
+- **Removed "Start now?" Prompt**: Just press Enter to begin
+- **Simplified FFmpeg**: Uses embedded binaries exclusively (no custom paths)
+- **Instant Toggles**: Press P or L to toggle iPod/Lyrics without confirmation prompts
+- **Go 1.24 Required**: Updated from Go 1.21
+
+### Dependencies Added
+
+- `github.com/charmbracelet/bubbletea` v1.3.10 - TUI framework
+- `github.com/charmbracelet/bubbles` v0.21.0 - TUI components
+- `github.com/charmbracelet/lipgloss` v1.1.0 - Terminal styling
+
+### Removed
+
+- `--ffmpeg` CLI flag (uses embedded binaries)
+- Custom ffmpeg path from config
+- "Beep boop" robot dialog
+- Subtitle text from banner
+- "Start now?" confirmation prompt
+- Old basic directory picker
+
+### Infrastructure
+
+- **Platform-Specific Embedding**: Build tags for each OS/arch combo
+- **Download Script**: `scripts/download-ffmpeg.sh` for CI/CD
+- **Updated Workflows**: GitHub Actions download binaries before building
+- **Documentation**: Added `EMBEDDING.md` technical guide
+
+### Files Added/Modified
+
+**New:**
+- `banner.go` - ASCII art logo and colored output
+- `dirpicker_bubbletea.go` - Modern directory picker
+- `embedded.go` - Core binary extraction logic
+- `embedded_*.go` - Platform-specific binary embedding (5 files)
+- `scripts/download-ffmpeg.sh` - Automated binary downloads
+- `binaries/README.md` - Binary documentation
+- `EMBEDDING.md` - Technical embedding guide
+
+**Modified:**
+- `main.go` - Redesigned interactive mode, removed ffmpeg flag
+- `converter.go` - Updated to receive ffmpegPath parameter
+- `.github/workflows/` - Download binaries in CI/CD
+- `README.md` - Updated for v4.0 features
+
 ## [3.0.0] - 2024-11-07
 
 ### 🚀 Major Rewrite

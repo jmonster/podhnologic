@@ -18,7 +18,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.24'
 
       - name: Download dependencies
         run: go mod download
@@ -58,7 +58,12 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.24'
+
+      - name: Download ffmpeg binaries
+        run: |
+          chmod +x scripts/download-ffmpeg.sh
+          ./scripts/download-ffmpeg.sh
 
       - name: Build
         env:

@@ -14,30 +14,28 @@ import (
 )
 
 const (
-	Version = "3.0.0"
+	Version = "4.0.0"
 )
 
 // Config represents the user's saved configuration
 type Config struct {
-	InputDir   string `json:"input_dir"`
-	OutputDir  string `json:"output_dir"`
-	Codec      string `json:"codec"`
-	IPod       bool   `json:"ipod"`
-	NoLyrics   bool   `json:"no_lyrics"`
-	FFmpegPath string `json:"ffmpeg_path,omitempty"`
+	InputDir  string `json:"input_dir"`
+	OutputDir string `json:"output_dir"`
+	Codec     string `json:"codec"`
+	IPod      bool   `json:"ipod"`
+	NoLyrics  bool   `json:"no_lyrics"`
 }
 
 var (
 	// Command-line flags
-	inputFlag   = flag.String("input", "", "Input directory containing audio files")
-	outputFlag  = flag.String("output", "", "Output directory for converted files")
-	codecFlag   = flag.String("codec", "", "Target codec: flac, alac, aac, wav, mp3, opus")
-	ipodFlag    = flag.Bool("ipod", false, "Enable iPod optimizations")
-	noLyricsFlag = flag.Bool("no-lyrics", false, "Strip lyrics metadata")
-	ffmpegFlag  = flag.String("ffmpeg", "", "Path to ffmpeg binary")
-	dryRunFlag  = flag.Bool("dry-run", false, "Show what would be done without converting")
+	inputFlag       = flag.String("input", "", "Input directory containing audio files")
+	outputFlag      = flag.String("output", "", "Output directory for converted files")
+	codecFlag       = flag.String("codec", "", "Target codec: flac, alac, aac, wav, mp3, opus")
+	ipodFlag        = flag.Bool("ipod", false, "Enable iPod optimizations")
+	noLyricsFlag    = flag.Bool("no-lyrics", false, "Strip lyrics metadata")
+	dryRunFlag      = flag.Bool("dry-run", false, "Show what would be done without converting")
 	interactiveFlag = flag.Bool("interactive", false, "Force interactive mode")
-	versionFlag = flag.Bool("version", false, "Show version information")
+	versionFlag     = flag.Bool("version", false, "Show version information")
 )
 
 func main() {
@@ -73,10 +71,10 @@ func main() {
 	} else {
 		// Command-line mode: override config with flags
 		if *inputFlag != "" {
-			config.InputDir = *inputFlag
+			config.InputDir = expandPath(*inputFlag)
 		}
 		if *outputFlag != "" {
-			config.OutputDir = *outputFlag
+			config.OutputDir = expandPath(*outputFlag)
 		}
 		if *codecFlag != "" {
 			config.Codec = *codecFlag
@@ -86,9 +84,6 @@ func main() {
 		}
 		if *noLyricsFlag {
 			config.NoLyrics = true
-		}
-		if *ffmpegFlag != "" {
-			config.FFmpegPath = *ffmpegFlag
 		}
 
 		// Validate required fields
@@ -103,12 +98,11 @@ func main() {
 		saveConfig(configDir, config)
 	}
 
-	// Ensure we have ffmpeg
-	ffmpegPath, err := ensureFFmpeg(configDir, config.FFmpegPath)
+	// Ensure we have ffmpeg (uses embedded binaries)
+	ffmpegPath, err := ensureFFmpeg(configDir)
 	if err != nil {
 		log.Fatalf("Failed to ensure ffmpeg is available: %v", err)
 	}
-	config.FFmpegPath = ffmpegPath
 
 	// Set default codec for iPod mode
 	if config.Codec == "" && config.IPod {
@@ -116,7 +110,7 @@ func main() {
 	}
 
 	// Run the conversion
-	if err := runConversion(config, *dryRunFlag); err != nil {
+	if err := runConversion(config, ffmpegPath, *dryRunFlag); err != nil {
 		log.Fatalf("Conversion failed: %v", err)
 	}
 }
@@ -159,121 +153,132 @@ func saveConfig(configDir string, config Config) error {
 }
 
 func runInteractive(config *Config, configDir string) error {
-	fmt.Println("=== podhnologic - Interactive Setup ===\n")
+	printBanner()
 
-	// Input directory
-	inputPrompt := promptui.Prompt{
-		Label:   "Input directory",
-		Default: config.InputDir,
-	}
-	inputDir, err := inputPrompt.Run()
-	if err != nil {
-		return err
-	}
-	config.InputDir = strings.TrimSpace(inputDir)
+	for {
+		// Display current configuration
+		fmt.Println()
+		fmt.Printf("%s%sCurrent Configuration:%s\n\n", colorBold, colorCyan, colorReset)
 
-	// Output directory
-	outputPrompt := promptui.Prompt{
-		Label:   "Output directory",
-		Default: config.OutputDir,
-	}
-	outputDir, err := outputPrompt.Run()
-	if err != nil {
-		return err
-	}
-	config.OutputDir = strings.TrimSpace(outputDir)
-
-	// Codec selection
-	codecPrompt := promptui.Select{
-		Label: "Select target codec",
-		Items: []string{"aac", "alac", "flac", "mp3", "opus", "wav"},
-		CursorPos: findIndex([]string{"aac", "alac", "flac", "mp3", "opus", "wav"}, config.Codec),
-	}
-	_, codec, err := codecPrompt.Run()
-	if err != nil {
-		return err
-	}
-	config.Codec = codec
-
-	// iPod optimization
-	ipodPrompt := promptui.Select{
-		Label: "Enable iPod optimizations?",
-		Items: []string{"Yes", "No"},
-	}
-	if config.IPod {
-		ipodPrompt.CursorPos = 0
-	} else {
-		ipodPrompt.CursorPos = 1
-	}
-	_, ipodChoice, err := ipodPrompt.Run()
-	if err != nil {
-		return err
-	}
-	config.IPod = (ipodChoice == "Yes")
-
-	// No lyrics option
-	noLyricsPrompt := promptui.Select{
-		Label: "Strip lyrics from metadata?",
-		Items: []string{"No", "Yes"},
-	}
-	if config.NoLyrics {
-		noLyricsPrompt.CursorPos = 1
-	} else {
-		noLyricsPrompt.CursorPos = 0
-	}
-	_, noLyricsChoice, err := noLyricsPrompt.Run()
-	if err != nil {
-		return err
-	}
-	config.NoLyrics = (noLyricsChoice == "Yes")
-
-	// Custom ffmpeg path (optional)
-	customFFmpegPrompt := promptui.Select{
-		Label: "Use custom ffmpeg path?",
-		Items: []string{"No (auto-detect/download)", "Yes (specify path)"},
-	}
-	_, customFFmpeg, err := customFFmpegPrompt.Run()
-	if err != nil {
-		return err
-	}
-
-	if customFFmpeg == "Yes (specify path)" {
-		ffmpegPathPrompt := promptui.Prompt{
-			Label:   "FFmpeg path",
-			Default: config.FFmpegPath,
+		// Input directory
+		inputDisplay := config.InputDir
+		if inputDisplay == "" {
+			inputDisplay = colorRed + "(not set)" + colorReset
+		} else {
+			inputDisplay = colorGreen + shortenPath(inputDisplay) + colorReset
 		}
-		ffmpegPath, err := ffmpegPathPrompt.Run()
-		if err != nil {
-			return err
+		fmt.Printf("  %s[I]%s Input Directory:  %s\n", colorYellow+colorBold, colorReset, inputDisplay)
+
+		// Output directory
+		outputDisplay := config.OutputDir
+		if outputDisplay == "" {
+			outputDisplay = colorRed + "(not set)" + colorReset
+		} else {
+			outputDisplay = colorGreen + shortenPath(outputDisplay) + colorReset
 		}
-		config.FFmpegPath = strings.TrimSpace(ffmpegPath)
-	} else {
-		config.FFmpegPath = ""
-	}
+		fmt.Printf("  %s[O]%s Output Directory: %s\n", colorYellow+colorBold, colorReset, outputDisplay)
 
-	// Save configuration
-	if err := saveConfig(configDir, *config); err != nil {
-		return fmt.Errorf("failed to save config: %w", err)
-	}
+		// Codec
+		codecDisplay := config.Codec
+		if codecDisplay == "" {
+			codecDisplay = colorRed + "(not set)" + colorReset
+		} else {
+			codecDisplay = colorGreen + codecDisplay + colorReset
+		}
+		fmt.Printf("  %s[C]%s Codec:            %s\n", colorYellow+colorBold, colorReset, codecDisplay)
 
-	fmt.Println("\n✓ Configuration saved to", filepath.Join(configDir, "config.json"))
+		// iPod mode
+		ipodDisplay := "disabled"
+		if config.IPod {
+			ipodDisplay = colorGreen + "enabled" + colorReset
+		} else {
+			ipodDisplay = colorWhite + "disabled" + colorReset
+		}
+		fmt.Printf("  %s[P]%s iPod Mode:        %s\n", colorYellow+colorBold, colorReset, ipodDisplay)
 
-	// Ask if they want to start conversion now
-	startPrompt := promptui.Select{
-		Label: "Start conversion now?",
-		Items: []string{"Yes", "No"},
-	}
-	_, startChoice, err := startPrompt.Run()
-	if err != nil {
-		return err
-	}
+		// Strip lyrics
+		lyricsDisplay := "keep lyrics"
+		if config.NoLyrics {
+			lyricsDisplay = colorYellow + "strip lyrics" + colorReset
+		} else {
+			lyricsDisplay = colorWhite + "keep lyrics" + colorReset
+		}
+		fmt.Printf("  %s[L]%s Lyrics:           %s\n", colorYellow+colorBold, colorReset, lyricsDisplay)
 
-	if startChoice == "No" {
-		fmt.Println("Configuration saved. Run 'podhnologic' again to start conversion.")
-		os.Exit(0)
-	}
+		fmt.Println()
+		fmt.Printf("%s%s[Enter]%s Start Conversion  %s[Q]%s Quit\n",
+			colorGreen+colorBold, colorReset, colorReset,
+			colorRed+colorBold, colorReset)
+		fmt.Println()
+		fmt.Print("Select option: ")
 
-	return nil
+		// Read single key
+		var input string
+		fmt.Scanln(&input)
+		input = strings.ToLower(strings.TrimSpace(input))
+
+		switch input {
+		case "i":
+			dir, err := RunBubbleTeaDirectoryPicker("📥 Select Input Directory (audio files to convert)", config.InputDir)
+			if err != nil {
+				printError(fmt.Sprintf("Error: %v", err))
+				continue
+			}
+			config.InputDir = dir
+			saveConfig(configDir, *config)
+
+		case "o":
+			dir, err := RunBubbleTeaDirectoryPicker("📤 Select Output Directory (where converted files will be saved)", config.OutputDir)
+			if err != nil {
+				printError(fmt.Sprintf("Error: %v", err))
+				continue
+			}
+			config.OutputDir = dir
+			saveConfig(configDir, *config)
+
+		case "c":
+			codecPrompt := promptui.Select{
+				Label:     "Select target codec",
+				Items:     []string{"aac", "alac", "flac", "mp3", "opus", "wav"},
+				CursorPos: findIndex([]string{"aac", "alac", "flac", "mp3", "opus", "wav"}, config.Codec),
+			}
+			_, codec, err := codecPrompt.Run()
+			if err != nil {
+				continue
+			}
+			config.Codec = codec
+			saveConfig(configDir, *config)
+
+		case "p":
+			config.IPod = !config.IPod
+			saveConfig(configDir, *config)
+
+		case "l":
+			config.NoLyrics = !config.NoLyrics
+			saveConfig(configDir, *config)
+
+		case "", "s", "start":
+			// Validate configuration
+			if config.InputDir == "" || config.OutputDir == "" {
+				printError("Please set both input and output directories before starting")
+				continue
+			}
+			if config.Codec == "" && !config.IPod {
+				printError("Please set a codec or enable iPod mode before starting")
+				continue
+			}
+			fmt.Println()
+			printSuccess("Starting conversion...")
+			return nil
+
+		case "q", "quit", "exit":
+			fmt.Println("Goodbye!")
+			os.Exit(0)
+
+		default:
+			printWarning("Invalid option. Please try again.")
+		}
+	}
 }
 
 func findIndex(items []string, target string) int {
@@ -283,6 +288,31 @@ func findIndex(items []string, target string) int {
 		}
 	}
 	return 0
+}
+
+func trimQuotes(s string) string {
+	// Remove surrounding single or double quotes
+	if len(s) >= 2 {
+		if (s[0] == '"' && s[len(s)-1] == '"') || (s[0] == '\'' && s[len(s)-1] == '\'') {
+			return s[1 : len(s)-1]
+		}
+	}
+	return s
+}
+
+func expandPath(path string) string {
+	// Expand ~ to home directory
+	if strings.HasPrefix(path, "~/") || path == "~" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return path
+		}
+		if path == "~" {
+			return homeDir
+		}
+		return filepath.Join(homeDir, path[2:])
+	}
+	return path
 }
 
 func getFFmpegDownloadURL() (string, error) {
@@ -313,16 +343,35 @@ func getFFmpegDownloadURL() (string, error) {
 	return "", fmt.Errorf("unsupported platform: %s/%s", os, arch)
 }
 
-func ensureFFmpeg(configDir, customPath string) (string, error) {
-	// If custom path is specified, verify it works
-	if customPath != "" {
-		if err := testFFmpeg(customPath); err != nil {
-			return "", fmt.Errorf("custom ffmpeg path is invalid: %w", err)
-		}
-		return customPath, nil
+func ensureFFmpeg(configDir string) (string, error) {
+	binDir := filepath.Join(configDir, "bin")
+	localFFmpeg := filepath.Join(binDir, "ffmpeg")
+	if runtime.GOOS == "windows" {
+		localFFmpeg += ".exe"
 	}
 
-	// Try to find ffmpeg in PATH
+	// Priority 1: Check if we have embedded binaries and extract them
+	if hasEmbeddedBinaries() {
+		// Check if already extracted
+		if _, err := os.Stat(localFFmpeg); err == nil {
+			if testFFmpeg(localFFmpeg) == nil {
+				return localFFmpeg, nil
+			}
+		}
+
+		// Extract embedded binaries
+		printInfo("Extracting embedded ffmpeg binaries...")
+		if err := extractEmbeddedFFmpeg(binDir); err != nil {
+			fmt.Printf("Warning: Failed to extract embedded binaries: %v\n", err)
+			// Continue to other methods
+		} else {
+			if testFFmpeg(localFFmpeg) == nil {
+				return localFFmpeg, nil
+			}
+		}
+	}
+
+	// Priority 2: Try to find ffmpeg in PATH
 	if path, err := findInPath("ffmpeg"); err == nil {
 		if testFFmpeg(path) == nil {
 			fmt.Printf("Found ffmpeg in PATH: %s\n", path)
@@ -330,20 +379,14 @@ func ensureFFmpeg(configDir, customPath string) (string, error) {
 		}
 	}
 
-	// Check if we already downloaded it
-	binDir := filepath.Join(configDir, "bin")
-	localFFmpeg := filepath.Join(binDir, "ffmpeg")
-	if runtime.GOOS == "windows" {
-		localFFmpeg += ".exe"
-	}
-
+	// Priority 3: Check if we already downloaded it
 	if _, err := os.Stat(localFFmpeg); err == nil {
 		if testFFmpeg(localFFmpeg) == nil {
 			return localFFmpeg, nil
 		}
 	}
 
-	// Need to download ffmpeg
+	// Priority 4: Download ffmpeg
 	fmt.Println("FFmpeg not found. Attempting to download...")
 
 	downloadURL, err := getFFmpegDownloadURL()

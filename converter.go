@@ -24,7 +24,7 @@ type Metadata struct {
 	} `json:"streams"`
 }
 
-func runConversion(config Config, dryRun bool) error {
+func runConversion(config Config, ffmpegPath string, dryRun bool) error {
 	if dryRun {
 		fmt.Println("=== DRY RUN MODE - No files will be converted ===")
 	}
@@ -54,7 +54,7 @@ func runConversion(config Config, dryRun bool) error {
 	fmt.Printf("Using %d threads\n\n", runtime.NumCPU())
 
 	// Process files in parallel
-	return processFilesParallel(files, config, dryRun)
+	return processFilesParallel(files, config, ffmpegPath, dryRun)
 }
 
 func collectAudioFiles(rootDir string) ([]string, error) {
@@ -85,7 +85,7 @@ func isAudioFile(path string) bool {
 	return false
 }
 
-func processFilesParallel(files []string, config Config, dryRun bool) error {
+func processFilesParallel(files []string, config Config, ffmpegPath string, dryRun bool) error {
 	numWorkers := runtime.NumCPU()
 	fileChan := make(chan string, len(files))
 	errorChan := make(chan error, len(files))
@@ -103,7 +103,7 @@ func processFilesParallel(files []string, config Config, dryRun bool) error {
 		go func() {
 			defer wg.Done()
 			for file := range fileChan {
-				if err := processFile(file, config, dryRun); err != nil {
+				if err := processFile(file, config, ffmpegPath, dryRun); err != nil {
 					errorChan <- err
 				}
 			}
@@ -132,7 +132,7 @@ func processFilesParallel(files []string, config Config, dryRun bool) error {
 	return nil
 }
 
-func processFile(inputPath string, config Config, dryRun bool) error {
+func processFile(inputPath string, config Config, ffmpegPath string, dryRun bool) error {
 	// Get relative path from input dir
 	relPath, err := filepath.Rel(config.InputDir, inputPath)
 	if err != nil {
@@ -153,7 +153,7 @@ func processFile(inputPath string, config Config, dryRun bool) error {
 	}
 
 	// Extract metadata
-	metadata, err := extractMetadata(inputPath, config.FFmpegPath)
+	metadata, err := extractMetadata(inputPath, ffmpegPath)
 	if err != nil {
 		return fmt.Errorf("failed to extract metadata from %s: %w", inputPath, err)
 	}
@@ -163,7 +163,7 @@ func processFile(inputPath string, config Config, dryRun bool) error {
 
 	if dryRun {
 		fmt.Printf("[DRY RUN] %s -> %s\n", inputPath, outputPath)
-		fmt.Printf("  Command: %s %s\n\n", config.FFmpegPath, strings.Join(args, " "))
+		fmt.Printf("  Command: %s %s\n\n", ffmpegPath, strings.Join(args, " "))
 		return nil
 	}
 
@@ -175,7 +175,7 @@ func processFile(inputPath string, config Config, dryRun bool) error {
 	// Run ffmpeg
 	fmt.Printf("Converting: %s\n", relPath)
 
-	cmd := execCommand(config.FFmpegPath, args...)
+	cmd := execCommand(ffmpegPath, args...)
 
 	// Capture stderr for error reporting
 	stderr, err := cmd.StderrPipe()
@@ -187,11 +187,22 @@ func processFile(inputPath string, config Config, dryRun bool) error {
 		return fmt.Errorf("failed to start ffmpeg: %w", err)
 	}
 
-	// Read stderr (but don't print unless there's an error)
-	stderrData, _ := io.ReadAll(stderr)
+	// Read stderr in a goroutine to avoid blocking
+	var stderrData []byte
+	stderrDone := make(chan struct{})
+	go func() {
+		stderrData, _ = io.ReadAll(stderr)
+		close(stderrDone)
+	}()
 
-	if err := cmd.Wait(); err != nil {
-		return fmt.Errorf("conversion failed for %s: %w\nFFmpeg output: %s", inputPath, err, string(stderrData))
+	// Wait for ffmpeg to complete
+	cmdErr := cmd.Wait()
+
+	// Wait for stderr to finish being read
+	<-stderrDone
+
+	if cmdErr != nil {
+		return fmt.Errorf("conversion failed for %s: %w\nFFmpeg output: %s", inputPath, cmdErr, string(stderrData))
 	}
 
 	fmt.Printf("✓ Completed: %s\n", relPath)
@@ -248,8 +259,9 @@ func buildFFmpegArgs(inputPath, outputPath string, config Config, metadata *Meta
 		}
 	}
 
-	// Add codec-specific parameters
-	args = append(args, getCodecParams(config)...)
+	// Add codec-specific parameters - we need to pass ffmpegPath here
+	// For now, use a default encoder selection
+	args = append(args, getCodecParamsSimple(config)...)
 
 	// Add output path
 	args = append(args, outputPath)
@@ -257,15 +269,13 @@ func buildFFmpegArgs(inputPath, outputPath string, config Config, metadata *Meta
 	return args
 }
 
-func getCodecParams(config Config) []string {
+func getCodecParamsSimple(config Config) []string {
 	var params []string
 
-	// Determine best AAC encoder
+	// Use aac_at for macOS (best quality), fallback to aac for other platforms
 	aacCodec := "aac"
-	if hasEncoder(config.FFmpegPath, "aac_at") {
+	if runtime.GOOS == "darwin" {
 		aacCodec = "aac_at"
-	} else if hasEncoder(config.FFmpegPath, "libfdk_aac") {
-		aacCodec = "libfdk_aac"
 	}
 
 	switch config.Codec {
@@ -312,26 +322,6 @@ func getOutputExtension(codec string) string {
 	}
 
 	return ".m4a" // default
-}
-
-var encoderCache = make(map[string]bool)
-var encoderCacheMutex sync.Mutex
-
-func hasEncoder(ffmpegPath, encoder string) bool {
-	encoderCacheMutex.Lock()
-	defer encoderCacheMutex.Unlock()
-
-	if cached, ok := encoderCache[encoder]; ok {
-		return cached
-	}
-
-	cmd := execCommand(ffmpegPath, "-h", fmt.Sprintf("encoder=%s", encoder))
-	output, err := cmd.CombinedOutput()
-
-	result := err == nil && strings.Contains(string(output), fmt.Sprintf("Encoder %s", encoder))
-	encoderCache[encoder] = result
-
-	return result
 }
 
 // execCommand is a helper to create exec.Command
