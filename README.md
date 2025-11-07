@@ -5,10 +5,6 @@
   <img alt="hero image" src="https://github.com/user-attachments/assets/a9383166-c1e6-432e-9658-9044b13725bc" width="256" height="256">
 </p>
 
-# ✨ Version 4.0 - The Ultimate Music Converter!
-
-**Self-contained music format converter with embedded FFmpeg. Zero dependencies.**
-
 - Terminal UI with keyboard shortcuts
 - FFmpeg embedded - no installation needed
 - Multi-threaded conversion using all CPU cores
