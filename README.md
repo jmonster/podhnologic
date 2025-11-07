@@ -5,15 +5,20 @@
   <img alt="hero image" src="https://github.com/user-attachments/assets/a9383166-c1e6-432e-9658-9044b13725bc" width="256" height="256">
 </p>
 
-# ✨ Version 3.0 - Now Self-Contained!
+# ✨ Version 4.0 - The Ultimate Music Converter!
 
-**New in v3.0:**
+**New in v4.0:**
+- 🎨 **Beautiful TUI** - Gorgeous terminal interface with ASCII art logo
+- ⚡ **Quick Config** - See all settings at once with keyboard shortcuts
+- 📁 **Visual Directory Picker** - Browse and select with arrow keys (Bubble Tea)
+- 🔄 **Instant Toggles** - Press P for iPod mode, L for lyrics, etc.
+- 💾 **Auto-Save** - Changes saved instantly, just press Enter to start
+
+**Since v3.0:**
 - 🚀 **Single binary** - No Node.js required!
-- 💬 **Interactive mode** - Friendly prompts guide you through setup
-- 💾 **Saves your settings** - Configuration persisted in `~/.podhnologic/config.json`
-- 📦 **Auto-downloads ffmpeg** - Manages ffmpeg automatically in `~/.podhnologic/bin/`
-- 🔄 **Cross-platform** - Supports Linux (amd64/arm64), macOS (Intel/Apple Silicon), and Windows
-- ⚡ **Efficient & resumable** - Same great performance, now in Go
+- 📦 **Embedded ffmpeg** - FFmpeg binaries bundled inside, zero dependencies!
+- 🔄 **Cross-platform** - Linux (amd64/arm64), macOS (Intel/Apple Silicon), Windows
+- ⚡ **Efficient & resumable** - Multi-threaded Go performance
 
 ## Quick Start
 
@@ -27,12 +32,14 @@
 ./podhnologic --interactive
 ```
 
-The interactive mode will:
-1. Prompt for input/output directories
-2. Let you choose your target codec
-3. Ask about iPod optimizations
-4. Save your preferences for next time
-5. Optionally start conversion immediately
+The interactive mode shows your current config with quick keys:
+- 🎨 **Bold ASCII logo** with gradient colors
+- 📋 **See all settings** - Input, output, codec, iPod mode, lyrics
+- ⌨️ **Quick shortcuts** - `[I]` input, `[O]` output, `[C]` codec, `[P]` iPod, `[L]` lyrics
+- ⚡ **Instant toggles** - Press P or L to toggle without prompts
+- 📁 **Visual picker** - Beautiful Bubble Tea directory browser when changing paths
+- 💾 **Auto-save** - All changes saved immediately
+- 🚀 **Press Enter** to start - No more "start now?" prompts!
 
 ### Command-Line Mode
 
@@ -40,7 +47,8 @@ The interactive mode will:
 ./podhnologic \
   --input "/path/to/input" \
   --output "/path/to/output" \
-  --ipod
+  --ipod \
+  --dry-run  # Optional: preview what will be converted
 ```
 
 # what?
@@ -110,6 +118,11 @@ Requires [Go 1.21+](https://golang.org/dl/)
 ```sh
 git clone https://github.com/jmonster/podhnologic.git
 cd podhnologic
+
+# Download ffmpeg binaries for embedding (required for first build)
+make download-binaries
+
+# Build for current platform
 make build
 
 # Optional: Install to /usr/local/bin
@@ -119,6 +132,10 @@ sudo make install
 ### Build for all platforms
 
 ```sh
+# Download binaries first (if not already done)
+make download-binaries
+
+# Build all platform binaries
 make build-all
 ```
 
@@ -127,22 +144,20 @@ This creates binaries in the `build/` directory for:
 - macOS (amd64, arm64)
 - Windows (amd64)
 
+Each binary is fully self-contained with embedded ffmpeg for its platform (~160-180MB per binary).
+
 ## ffmpeg
 
-The tool will automatically:
-1. Check if ffmpeg is installed in your PATH
-2. If not found, download a static build to `~/.podhnologic/bin/`
-3. Use the downloaded version for all conversions
+**FFmpeg is now embedded!** The tool comes with static ffmpeg binaries built-in. On first run, it will extract them to `~/.podhnologic/bin/`.
 
-You can also specify a custom ffmpeg path:
-```sh
-./podhnologic --ffmpeg "/opt/homebrew/bin/ffmpeg"
-```
+No installation needed! Just download and run.
 
-**Note for macOS users**: If auto-download doesn't work, install ffmpeg via Homebrew:
-```sh
-brew install ffmpeg
-```
+The tool automatically uses embedded binaries:
+1. **First run**: Extracts FFmpeg/FFprobe to `~/.podhnologic/bin/`
+2. **Subsequent runs**: Uses already-extracted binaries (instant startup)
+3. **Fallback**: If embedded binaries fail, checks system PATH
+
+No configuration needed - just run it!
 
 # usage
 
@@ -198,22 +213,22 @@ podhnologic \
   --codec alac
 ```
 
-Custom ffmpeg path:
-```sh
-podhnologic \
-  --input "/path/to/input" \
-  --output "/path/to/output" \
-  --ipod \
-  --ffmpeg "/opt/homebrew/bin/ffmpeg"
-```
-
-Dry run (preview what will happen):
+Preview before converting:
 ```sh
 podhnologic \
   --input "/path/to/input" \
   --output "/path/to/output" \
   --codec aac \
   --dry-run
+```
+
+Strip lyrics to save iPod memory:
+```sh
+podhnologic \
+  --input "/path/to/input" \
+  --output "/path/to/output" \
+  --ipod \
+  --no-lyrics
 ```
 
 ## Configuration

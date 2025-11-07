@@ -20,19 +20,32 @@ GOMOD=$(GOCMD) mod
 # Build flags
 LDFLAGS=-ldflags "-s -w -X main.Version=$(VERSION)"
 
-.PHONY: all build clean test deps run install build-all
+.PHONY: all build clean test deps run install build-all download-binaries
 
 all: test build
 
-# Build for current platform
-build:
+# Download ffmpeg binaries for embedding
+download-binaries:
+	@echo "Downloading ffmpeg binaries for all platforms..."
+	@./scripts/download-ffmpeg.sh
+
+# Build for current platform (with embedded binaries)
+build: check-binaries
 	@echo "Building $(BINARY_NAME) for current platform..."
 	@mkdir -p $(BUILD_DIR)
 	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) .
 	@echo "Build complete: $(BUILD_DIR)/$(BINARY_NAME)"
 
-# Build for all platforms
-build-all: build-linux build-darwin build-windows
+# Build for all platforms (with embedded binaries)
+build-all: check-binaries build-linux build-darwin build-windows
+
+# Check if binaries directory exists
+check-binaries:
+	@if [ ! -d "binaries" ]; then \
+		echo "Error: binaries/ directory not found."; \
+		echo "Run 'make download-binaries' first to download ffmpeg binaries."; \
+		exit 1; \
+	fi
 
 build-linux:
 	@echo "Building for Linux (amd64)..."
@@ -83,10 +96,11 @@ run: build
 # Show help
 help:
 	@echo "Available targets:"
-	@echo "  make build       - Build for current platform"
-	@echo "  make build-all   - Build for all platforms"
-	@echo "  make deps        - Download dependencies"
-	@echo "  make test        - Run tests"
-	@echo "  make clean       - Remove build artifacts"
-	@echo "  make install     - Install to /usr/local/bin"
-	@echo "  make run         - Build and run"
+	@echo "  make download-binaries - Download ffmpeg binaries for embedding"
+	@echo "  make build             - Build for current platform (with embedded binaries)"
+	@echo "  make build-all         - Build for all platforms (with embedded binaries)"
+	@echo "  make deps              - Download Go dependencies"
+	@echo "  make test              - Run tests"
+	@echo "  make clean             - Remove build artifacts"
+	@echo "  make install           - Install to /usr/local/bin"
+	@echo "  make run               - Build and run"
