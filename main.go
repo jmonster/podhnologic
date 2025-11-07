@@ -10,7 +10,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/manifoldco/promptui"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 const (
@@ -153,132 +153,26 @@ func saveConfig(configDir string, config Config) error {
 }
 
 func runInteractive(config *Config, configDir string) error {
-	printBanner()
+	// Create and run the interactive menu
+	menu := NewMenuModel(config, configDir)
 
-	for {
-		// Display current configuration
-		fmt.Println()
-		fmt.Printf("%s%sCurrent Configuration:%s\n\n", colorBold, colorCyan, colorReset)
+	p := tea.NewProgram(menu, tea.WithAltScreen())
+	finalModel, err := p.Run()
+	if err != nil {
+		return fmt.Errorf("error running menu: %w", err)
+	}
 
-		// Input directory
-		inputDisplay := config.InputDir
-		if inputDisplay == "" {
-			inputDisplay = colorRed + "(not set)" + colorReset
-		} else {
-			inputDisplay = colorGreen + shortenPath(inputDisplay) + colorReset
-		}
-		fmt.Printf("  %s[I]%s Input Directory:  %s\n", colorYellow+colorBold, colorReset, inputDisplay)
-
-		// Output directory
-		outputDisplay := config.OutputDir
-		if outputDisplay == "" {
-			outputDisplay = colorRed + "(not set)" + colorReset
-		} else {
-			outputDisplay = colorGreen + shortenPath(outputDisplay) + colorReset
-		}
-		fmt.Printf("  %s[O]%s Output Directory: %s\n", colorYellow+colorBold, colorReset, outputDisplay)
-
-		// Codec
-		codecDisplay := config.Codec
-		if codecDisplay == "" {
-			codecDisplay = colorRed + "(not set)" + colorReset
-		} else {
-			codecDisplay = colorGreen + codecDisplay + colorReset
-		}
-		fmt.Printf("  %s[C]%s Codec:            %s\n", colorYellow+colorBold, colorReset, codecDisplay)
-
-		// iPod mode
-		ipodDisplay := "disabled"
-		if config.IPod {
-			ipodDisplay = colorGreen + "enabled" + colorReset
-		} else {
-			ipodDisplay = colorWhite + "disabled" + colorReset
-		}
-		fmt.Printf("  %s[P]%s iPod Mode:        %s\n", colorYellow+colorBold, colorReset, ipodDisplay)
-
-		// Strip lyrics
-		lyricsDisplay := "keep lyrics"
-		if config.NoLyrics {
-			lyricsDisplay = colorYellow + "strip lyrics" + colorReset
-		} else {
-			lyricsDisplay = colorWhite + "keep lyrics" + colorReset
-		}
-		fmt.Printf("  %s[L]%s Lyrics:           %s\n", colorYellow+colorBold, colorReset, lyricsDisplay)
-
-		fmt.Println()
-		fmt.Printf("%s%s[Enter]%s Start Conversion  %s[Q]%s Quit\n",
-			colorGreen+colorBold, colorReset, colorReset,
-			colorRed+colorBold, colorReset)
-		fmt.Println()
-		fmt.Print("Select option: ")
-
-		// Read single key
-		var input string
-		fmt.Scanln(&input)
-		input = strings.ToLower(strings.TrimSpace(input))
-
-		switch input {
-		case "i":
-			dir, err := RunBubbleTeaDirectoryPicker("📥 Select Input Directory (audio files to convert)", config.InputDir)
-			if err != nil {
-				printError(fmt.Sprintf("Error: %v", err))
-				continue
-			}
-			config.InputDir = dir
-			saveConfig(configDir, *config)
-
-		case "o":
-			dir, err := RunBubbleTeaDirectoryPicker("📤 Select Output Directory (where converted files will be saved)", config.OutputDir)
-			if err != nil {
-				printError(fmt.Sprintf("Error: %v", err))
-				continue
-			}
-			config.OutputDir = dir
-			saveConfig(configDir, *config)
-
-		case "c":
-			codecPrompt := promptui.Select{
-				Label:     "Select target codec",
-				Items:     []string{"aac", "alac", "flac", "mp3", "opus", "wav"},
-				CursorPos: findIndex([]string{"aac", "alac", "flac", "mp3", "opus", "wav"}, config.Codec),
-			}
-			_, codec, err := codecPrompt.Run()
-			if err != nil {
-				continue
-			}
-			config.Codec = codec
-			saveConfig(configDir, *config)
-
-		case "p":
-			config.IPod = !config.IPod
-			saveConfig(configDir, *config)
-
-		case "l":
-			config.NoLyrics = !config.NoLyrics
-			saveConfig(configDir, *config)
-
-		case "", "s", "start":
-			// Validate configuration
-			if config.InputDir == "" || config.OutputDir == "" {
-				printError("Please set both input and output directories before starting")
-				continue
-			}
-			if config.Codec == "" && !config.IPod {
-				printError("Please set a codec or enable iPod mode before starting")
-				continue
-			}
+	// Check if user wants to start conversion
+	if m, ok := finalModel.(menuModel); ok {
+		if m.shouldStart {
 			fmt.Println()
 			printSuccess("Starting conversion...")
 			return nil
-
-		case "q", "quit", "exit":
-			fmt.Println("Goodbye!")
-			os.Exit(0)
-
-		default:
-			printWarning("Invalid option. Please try again.")
 		}
 	}
+
+	// User quit without starting
+	return fmt.Errorf("cancelled by user")
 }
 
 func findIndex(items []string, target string) int {
@@ -298,6 +192,19 @@ func trimQuotes(s string) string {
 		}
 	}
 	return s
+}
+
+func shortenPath(path string) string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return path
+	}
+
+	if strings.HasPrefix(path, homeDir) {
+		return "~" + strings.TrimPrefix(path, homeDir)
+	}
+
+	return path
 }
 
 func expandPath(path string) string {

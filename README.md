@@ -7,48 +7,36 @@
 
 # ✨ Version 4.0 - The Ultimate Music Converter!
 
-**New in v4.0:**
-- 🎨 **Beautiful TUI** - Gorgeous terminal interface with ASCII art logo
-- ⚡ **Quick Config** - See all settings at once with keyboard shortcuts
-- 📁 **Visual Directory Picker** - Browse and select with arrow keys (Bubble Tea)
-- 🔄 **Instant Toggles** - Press P for iPod mode, L for lyrics, etc.
-- 💾 **Auto-Save** - Changes saved instantly, just press Enter to start
+**Self-contained music format converter with embedded FFmpeg. Zero dependencies.**
 
-**Since v3.0:**
-- 🚀 **Single binary** - No Node.js required!
-- 📦 **Embedded ffmpeg** - FFmpeg binaries bundled inside, zero dependencies!
-- 🔄 **Cross-platform** - Linux (amd64/arm64), macOS (Intel/Apple Silicon), Windows
-- ⚡ **Efficient & resumable** - Multi-threaded Go performance
+- Terminal UI with keyboard shortcuts
+- FFmpeg embedded - no installation needed
+- Multi-threaded conversion using all CPU cores
+- Resumable - skips already converted files
+- iPod optimized conversions
+
+![Screenshot](screenshot.webp)
 
 ## Quick Start
 
-### Interactive Mode (Recommended)
+### 1. Download
 
+Get the latest binary from [Releases](https://github.com/jmonster/podhnologic/releases):
+
+| Platform | Download |
+|----------|----------|
+| **macOS (Apple Silicon)** | `podhnologic-darwin-arm64` |
+| **macOS (Intel)** | `podhnologic-darwin-amd64` |
+| **Windows** | `podhnologic-windows-amd64.exe` |
+| **Linux (x64)** | `podhnologic-linux-amd64` |
+| **Linux (ARM64)** | `podhnologic-linux-arm64` |
+
+### 2. Run
+
+**macOS / Linux:**
 ```sh
-# Download and run - it will prompt you for everything
-./podhnologic
-
-# Or force interactive mode
-./podhnologic --interactive
-```
-
-The interactive mode shows your current config with quick keys:
-- 🎨 **Bold ASCII logo** with gradient colors
-- 📋 **See all settings** - Input, output, codec, iPod mode, lyrics
-- ⌨️ **Quick shortcuts** - `[I]` input, `[O]` output, `[C]` codec, `[P]` iPod, `[L]` lyrics
-- ⚡ **Instant toggles** - Press P or L to toggle without prompts
-- 📁 **Visual picker** - Beautiful Bubble Tea directory browser when changing paths
-- 💾 **Auto-save** - All changes saved immediately
-- 🚀 **Press Enter** to start - No more "start now?" prompts!
-
-### Command-Line Mode
-
-```sh
-./podhnologic \
-  --input "/path/to/input" \
-  --output "/path/to/output" \
-  --ipod \
-  --dry-run  # Optional: preview what will be converted
+chmod +x podhnologic-*
+./podhnologic-*
 ```
 
 # what?
@@ -84,20 +72,34 @@ This tool is simple and opinionated. I assume you want the best possible but pra
 - Album art is preserved
 
 # performant
+**Windows:**
+```cmd
+podhnologic-windows-amd64.exe
+```
 
 Runs `X`-times faster than iTunes while utilizing the same encoder on a machine with `X` idle cores
 
 <img width="434" alt="image" src="https://github.com/jmonster/podhnologic/assets/368767/8a50948c-1e63-441d-8df8-ea3bebd75895">
+## Usage
 
-# resumable
+### Interactive Mode (Recommended)
 
-Checks if the output file already exists before converting. If a big job gets interrupted, just re-run the same command and the files that are already done will be skipped.
+Just run the binary:
 
-# installation
+```sh
+./podhnologic
+```
 
-## Download Pre-built Binary
+You'll see your current settings with keyboard shortcuts:
+- **[I]** - Change input directory (visual browser)
+- **[O]** - Change output directory (visual browser)
+- **[C]** - Select codec (aac, alac, flac, mp3, opus, wav)
+- **[P]** - Toggle iPod optimizations
+- **[L]** - Toggle lyrics stripping
+- **[Enter]** - Start conversion
+- **[Q]** - Quit
 
-Download the latest release for your platform from the [Releases](https://github.com/jmonster/podhnologic/releases) page:
+All changes auto-save to `~/.podhnologic/config.json`.
 
 - **Linux (amd64)**: `podhnologic-linux-amd64`
 - **Linux (arm64)**: `podhnologic-linux-arm64`
@@ -105,121 +107,103 @@ Download the latest release for your platform from the [Releases](https://github
 - **macOS (Apple Silicon)**: `podhnologic-darwin-arm64`
 - **Windows**: `podhnologic-windows-amd64.exe`
 
-Make it executable (Linux/macOS):
 ```sh
-chmod +x podhnologic-*
-sudo mv podhnologic-* /usr/local/bin/podhnologic
+./podhnologic --input /path/to/music --output /path/to/converted --ipod
 ```
+
+**Common flags:**
+- `--input <dir>` - Source directory with audio files
+- `--output <dir>` - Destination directory
+- `--codec <format>` - Target format: `aac`, `alac`, `flac`, `mp3`, `opus`, `wav`
+- `--ipod` - Enable iPod optimizations (256kbps AAC)
+- `--no-lyrics` - Strip lyrics to save iPod memory
+- `--dry-run` - Preview what would be converted
+
+**Examples:**
+
+iPod conversion (256kbps AAC):
+```sh
+./podhnologic --input ~/Music --output ~/iPod --ipod
+```
+
+iPod with lossless ALAC (down-sampled to 16-bit 44.1kHz):
+```sh
+./podhnologic --input ~/Music --output ~/iPod --ipod --codec alac
+```
+
+Preview conversions:
+```sh
+./podhnologic --input ~/Music --output ~/Converted --codec flac --dry-run
+```
+
+## Quality Settings
+
+Each binary is fully self-contained with embedded ffmpeg for its platform (~160-180MB per binary).
+
+| Codec | Settings |
+|-------|----------|
+| **AAC** | 256kbps, Apple encoder (macOS) or FFmpeg |
+| **ALAC** | Lossless (16-bit 44.1kHz with `--ipod`) |
+| **FLAC** | Lossless |
+| **MP3** | 320kbps (V0) |
+| **Opus** | 128kbps |
+| **WAV** | 16-bit PCM |
+
+## iPod Optimizations
+
+When using `--ipod`:
+- **AAC**: 256kbps (transparent quality, great battery life)
+- **ALAC**: Down-sampled to 16-bit 44.1kHz (prevents track skipping)
+- **Metadata**: Keeps only essential tags (title, artist, album, date, track, genre, disc, lyrics)
+- **Album art**: Preserved
+- **Fast-start**: Optimized for streaming/playback
+
+Add `--no-lyrics` to strip lyrics and fit more tracks in iPod memory.
+
+### Why AAC for iPod?
+
+**Battery Life**
+- Less storage accesses / wake ups
+- Hardware optimized for decoding AAC
+
+**Storage**
+- Files are significantly smaller
+- Fit more music on your device
+
+**Quality**
+- 256kbps AAC is transparent (indistinguishable from lossless for most listeners)
+- If you can tell the difference and care, use `--codec alac`
+
+## Performance
+
+Multi-threaded conversion using all CPU cores. Runs significantly faster than iTunes while using the same encoder on macOS (Apple's AAC encoder).
+
+## Resumable
+
+Checks if output files already exist before converting. If a job gets interrupted, re-run the same command and already-converted files will be skipped.
+
+## Installation (Optional)
+
+Move to system PATH for easier access:
+
+**macOS / Linux:**
+```sh
+sudo mv podhnologic-* /usr/local/bin/podhnologic
+podhnologic
+```
+
+**Windows:**
+Move `podhnologic-windows-amd64.exe` to a folder in your PATH, or rename to `podhnologic.exe` and run from anywhere.
 
 ## Build from Source
 
-Requires [Go 1.21+](https://golang.org/dl/)
+Requires Go 1.24+:
 
 ```sh
 git clone https://github.com/jmonster/podhnologic.git
 cd podhnologic
-
-# Download ffmpeg binaries for embedding (required for first build)
-make download-binaries
-
-# Build for current platform
+make download-binaries  # Downloads ffmpeg for embedding (~1.3GB)
 make build
-
-# Optional: Install to /usr/local/bin
-sudo make install
-```
-
-### Build for all platforms
-
-```sh
-# Download binaries first (if not already done)
-make download-binaries
-
-# Build all platform binaries
-make build-all
-```
-
-This creates binaries in the `build/` directory for:
-- Linux (amd64, arm64)
-- macOS (amd64, arm64)
-- Windows (amd64)
-
-Each binary is fully self-contained with embedded ffmpeg for its platform (~160-180MB per binary).
-
-## ffmpeg
-
-**FFmpeg is now embedded!** The tool comes with static ffmpeg binaries built-in. On first run, it will extract them to `~/.podhnologic/bin/`.
-
-No installation needed! Just download and run.
-
-The tool automatically uses embedded binaries:
-1. **First run**: Extracts FFmpeg/FFprobe to `~/.podhnologic/bin/`
-2. **Subsequent runs**: Uses already-extracted binaries (instant startup)
-3. **Fallback**: If embedded binaries fail, checks system PATH
-
-No configuration needed - just run it!
-
-# usage
-
-## Interactive Mode
-
-Just run the binary without arguments:
-
-```sh
-podhnologic
-```
-
-You'll be prompted for:
-- Input directory
-- Output directory
-- Target codec
-- iPod optimizations
-- Lyrics handling
-- Custom ffmpeg path (optional)
-
-Your choices are saved to `~/.podhnologic/config.json` and will be used as defaults next time.
-
-## Command-Line Mode
-
-### All Options
-
-```sh
-podhnologic \
-  --input <inputDir> \
-  --output <outputDir> \
-  --codec [flac|alac|aac|wav|mp3|opus] \
-  [--ipod] \
-  [--no-lyrics] \
-  [--ffmpeg /path/to/ffmpeg] \
-  [--dry-run]
-```
-
-### Examples
-
-Basic iPod conversion (256kbps AAC):
-```sh
-podhnologic \
-  --input "/path/to/input" \
-  --output "/path/to/output" \
-  --ipod
-```
-
-iPod with ALAC (lossless, down-sampled):
-```sh
-podhnologic \
-  --input "/path/to/input" \
-  --output "/path/to/output" \
-  --ipod \
-  --codec alac
-```
-
-Preview before converting:
-```sh
-podhnologic \
-  --input "/path/to/input" \
-  --output "/path/to/output" \
-  --codec aac \
-  --dry-run
 ```
 
 Strip lyrics to save iPod memory:
@@ -230,10 +214,13 @@ podhnologic \
   --ipod \
   --no-lyrics
 ```
+## FFmpeg
 
-## Configuration
+FFmpeg is embedded in the binary. On first run, it extracts to `~/.podhnologic/bin/`. No installation or configuration needed.
 
-Settings are stored in `~/.podhnologic/config.json`:
+## Config File
+
+Settings save to `~/.podhnologic/config.json`:
 
 ```json
 {
@@ -241,42 +228,13 @@ Settings are stored in `~/.podhnologic/config.json`:
   "output_dir": "/path/to/converted",
   "codec": "aac",
   "ipod": true,
-  "no_lyrics": false,
-  "ffmpeg_path": ""
+  "no_lyrics": false
 }
 ```
 
-You can edit this file manually or use interactive mode to update it.
-
-## tips
-
-For iPod, just use `--ipod` (256-kbps AAC) and be done with it.
-
-- **battery life**
-  - less storage accesses / wake ups
-  - hardware is optimized for decoding aac
-- **storage**
-  - files are significantly smaller
-- **transparent**
-  - 256 AAC is **not** lossless, but it is transparent
-    - _If you can tell the difference **and** care about that difference then, by all means, `--codec alac` is for you_
-
-# migration from v2.x (Node.js)
-
-If you were using the Node.js version:
-
-1. **Build or download** the new Go binary
-2. **Run it once** in interactive mode to set up your configuration
-3. **Same directories work** - the conversion logic is identical
-4. **Resume support** - existing converted files will be skipped automatically
-5. **Uninstall old version** (optional): `npm uninstall -g podhnologic`
-
-Your existing converted files are fully compatible. The new version will skip them just like the old one did.
-
-# disclaimer
 
 This software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and noninfringement. In no event shall the authors be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the software or the use or other dealings in the software.
 
-# license
+## License
 
-This project is licensed under the Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License. See the [LICENSE](LICENSE.md) file for more details.
+Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International. See [LICENSE](LICENSE.md).

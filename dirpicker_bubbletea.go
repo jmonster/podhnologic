@@ -52,11 +52,12 @@ func (m dirPickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "q":
+		case "ctrl+c", "q", "esc":
+			// Cancel without selecting - leave selectedPath empty
 			m.quitting = true
 			return m, tea.Quit
-		case "enter":
-			// Select current directory
+		case " ", "s":
+			// Space/s key selects the current directory without navigating
 			m.selectedPath = m.filepicker.CurrentDirectory
 			m.quitting = true
 			return m, tea.Quit
@@ -65,8 +66,21 @@ func (m dirPickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.err = nil
 	}
 
+	// Store the previous path to detect if filepicker set it
+	prevPath := m.filepicker.Path
+
+	// Update filepicker with the message
 	var cmd tea.Cmd
 	m.filepicker, cmd = m.filepicker.Update(msg)
+
+	// Check if user pressed enter on a directory
+	// The filepicker sets Path when a directory is selected
+	if m.filepicker.Path != "" && m.filepicker.Path != prevPath {
+		// User selected a directory - capture it before filepicker navigates
+		m.selectedPath = m.filepicker.Path
+		m.quitting = true
+		return m, tea.Quit
+	}
 
 	return m, cmd
 }
@@ -82,8 +96,9 @@ func (m dirPickerModel) View() string {
 	s.WriteString(titleStyle.Render(m.label))
 	s.WriteString("\n\n")
 
-	// Current directory
-	s.WriteString(selectedPathStyle.Render("📂 " + shortenPath(m.filepicker.CurrentDirectory)))
+	// Current directory with clear instruction
+	currentDir := selectedPathStyle.Render("📂 " + shortenPath(m.filepicker.CurrentDirectory))
+	s.WriteString(currentDir)
 	s.WriteString("\n\n")
 
 	// File picker view
@@ -95,8 +110,8 @@ func (m dirPickerModel) View() string {
 		s.WriteString("\n")
 	}
 
-	// Help text
-	help := helpStyle.Render("↑↓: navigate • ←→/enter: enter/exit dir • enter: select current • q: quit")
+	// Help text - succinct and clear
+	help := helpStyle.Render("↑↓ navigate • Enter select folder • Space select current • → open • Esc cancel")
 	s.WriteString("\n" + help)
 
 	return s.String()
@@ -154,7 +169,8 @@ func RunBubbleTeaDirectoryPicker(label, defaultPath string) (string, error) {
 		label:      label,
 	}
 
-	tm, err := tea.NewProgram(&m, tea.WithOutput(os.Stderr)).Run()
+	// Use AltScreen to match the main menu and avoid terminal corruption
+	tm, err := tea.NewProgram(&m, tea.WithAltScreen()).Run()
 	if err != nil {
 		return "", err
 	}
