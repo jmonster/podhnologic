@@ -18,6 +18,19 @@ binaries/
 
 # Output of the go coverage tool
 *.out
+coverage.html
+
+# Test data directories
+testdata/input/
+testdata/output/
+testdata/temp/
+testdata/*.mp3
+testdata/*.wav
+testdata/*.flac
+testdata/*.aac
+testdata/*.opus
+testdata/*.m4a
+testdata/*.ogg
 
 # Dependency directories
 vendor/
