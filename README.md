@@ -15,9 +15,23 @@
 
 ## Quick Start
 
-### 1. Download
+### Install (recommended)
 
-Get the latest binary from [Releases](https://github.com/jmonster/podhnologic/releases):
+```sh
+curl -fsSL https://raw.githubusercontent.com/jmonster/podhnologic/main/install.sh | sh
+```
+
+This installs to `~/.local/bin` and adds it to your PATH. Then just run:
+
+```sh
+podhnologic
+```
+
+macOS binaries are signed and notarized - no Gatekeeper warnings.
+
+### Manual Download
+
+Or download directly from [Releases](https://github.com/jmonster/podhnologic/releases):
 
 | Platform | Download |
 |----------|----------|
@@ -27,9 +41,6 @@ Get the latest binary from [Releases](https://github.com/jmonster/podhnologic/re
 | **Linux (x64)** | `podhnologic-linux-amd64` |
 | **Linux (ARM64)** | `podhnologic-linux-arm64` |
 
-### 2. Run
-
-**macOS / Linux:**
 ```sh
 chmod +x podhnologic-*
 ./podhnologic-*
