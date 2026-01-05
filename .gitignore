@@ -3,6 +3,7 @@ node_modules
 
 # Go binaries
 build/
+.build/
 *.exe
 *.dll
 *.so
