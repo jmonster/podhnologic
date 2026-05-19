@@ -2,13 +2,13 @@ name: Build and Test
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
 
 jobs:
   test:
-    name: Test
+    name: Go and Web Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -18,38 +18,48 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version-file: go.mod
 
-      - name: Download dependencies
+      - name: Download Go dependencies
         run: go mod download
 
-      - name: Verify dependencies
+      - name: Verify Go dependencies
         run: go mod verify
 
-      - name: Run tests
+      - name: Run Go tests
         run: go test -v ./...
 
-      - name: Build
-        run: go build -v ./...
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
-  build:
-    name: Build for multiple platforms
-    runs-on: ubuntu-latest
+      - name: Build web app
+        run: |
+          corepack enable
+          cd web
+          pnpm install --frozen-lockfile
+          pnpm build
+
+  linked-build:
+    name: Linked build ${{ matrix.target }}
     needs: test
+    runs-on: ${{ matrix.runner }}
 
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - goos: linux
-            goarch: amd64
-          - goos: linux
-            goarch: arm64
-          - goos: darwin
-            goarch: amd64
-          - goos: darwin
-            goarch: arm64
-          - goos: windows
-            goarch: amd64
+          - target: darwin-arm64
+            runner: macos-latest
+          - target: darwin-amd64
+            runner: macos-latest
+          - target: linux-amd64
+            runner: ubuntu-latest
+          - target: linux-arm64
+            runner: ubuntu-latest
+          - target: windows-amd64
+            runner: ubuntu-latest
 
     steps:
       - name: Checkout code
@@ -58,21 +68,38 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version-file: go.mod
 
-      - name: Download ffmpeg binaries
+      - name: Install Linux toolchains
+        if: runner.os == 'Linux'
         run: |
-          chmod +x scripts/download-ffmpeg.sh
-          ./scripts/download-ffmpeg.sh
+          sudo apt-get update
+          sudo apt-get install -y \
+            autoconf \
+            automake \
+            build-essential \
+            curl \
+            gcc-aarch64-linux-gnu \
+            gcc-mingw-w64-x86-64 \
+            libtool \
+            make \
+            pkg-config \
+            xz-utils
 
-      - name: Build
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
+      - name: Install macOS build tools
+        if: runner.os == 'macOS'
         run: |
-          BINARY_NAME="podhnologic-${{ matrix.goos }}-${{ matrix.goarch }}"
-          if [ "${{ matrix.goos }}" = "windows" ]; then
-            BINARY_NAME="${BINARY_NAME}.exe"
+          if ! command -v pkg-config >/dev/null 2>&1; then
+            brew install pkg-config
           fi
-          go build -v -o "${BINARY_NAME}" .
-          ls -lh "${BINARY_NAME}"
+
+      - name: Build linked binary
+        run: ./scripts/build-linked.sh "${{ matrix.target }}"
+
+      - name: Verify binary exists
+        run: |
+          suffix=""
+          if [[ "${{ matrix.target }}" == windows-* ]]; then
+            suffix=".exe"
+          fi
+          test -s "build/podhnologic-${{ matrix.target }}${suffix}"

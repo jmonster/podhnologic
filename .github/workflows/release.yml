@@ -10,22 +10,44 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    name: Build binaries
+  build-web:
+    name: Build web app
     runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build web app
+        run: |
+          corepack enable
+          cd web
+          pnpm install --frozen-lockfile
+          pnpm build
+
+  build-native:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - goos: linux
-            goarch: amd64
-          - goos: linux
-            goarch: arm64
-          - goos: darwin
-            goarch: amd64
-          - goos: darwin
-            goarch: arm64
-          - goos: windows
-            goarch: amd64
+          - target: darwin-arm64
+            runner: macos-latest
+          - target: darwin-amd64
+            runner: macos-latest
+          - target: linux-amd64
+            runner: ubuntu-latest
+          - target: linux-arm64
+            runner: ubuntu-latest
+          - target: windows-amd64
+            runner: ubuntu-latest
 
     steps:
       - name: Checkout code
@@ -34,63 +56,139 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version-file: go.mod
 
-      - name: Download ffmpeg binaries
+      - name: Install Linux toolchains
+        if: runner.os == 'Linux'
         run: |
-          chmod +x scripts/download-ffmpeg.sh
-          ./scripts/download-ffmpeg.sh
+          sudo apt-get update
+          sudo apt-get install -y \
+            autoconf \
+            automake \
+            build-essential \
+            curl \
+            gcc-aarch64-linux-gnu \
+            gcc-mingw-w64-x86-64 \
+            libtool \
+            make \
+            pkg-config \
+            xz-utils
+
+      - name: Install macOS build tools
+        if: runner.os == 'macOS'
+        run: |
+          if ! command -v pkg-config >/dev/null 2>&1; then
+            brew install pkg-config
+          fi
+
+      - name: Import Developer ID certificate
+        if: startsWith(matrix.target, 'darwin-')
+        env:
+          APPLE_DEVELOPER_ID_APPLICATION_CERTIFICATE_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_APPLICATION_CERTIFICATE_BASE64 }}
+          APPLE_DEVELOPER_ID_APPLICATION_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_APPLICATION_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.APPLE_CODESIGN_KEYCHAIN_PASSWORD }}
+        run: |
+          test -n "$APPLE_DEVELOPER_ID_APPLICATION_CERTIFICATE_BASE64"
+          test -n "$APPLE_DEVELOPER_ID_APPLICATION_CERTIFICATE_PASSWORD"
+          test -n "$KEYCHAIN_PASSWORD"
+
+          certificate_path="$RUNNER_TEMP/developer-id-application.p12"
+          keychain_path="$RUNNER_TEMP/podhnologic-signing.keychain-db"
+
+          if ! printf '%s' "$APPLE_DEVELOPER_ID_APPLICATION_CERTIFICATE_BASE64" | base64 --decode > "$certificate_path" 2>/dev/null; then
+            printf '%s' "$APPLE_DEVELOPER_ID_APPLICATION_CERTIFICATE_BASE64" | base64 -D > "$certificate_path"
+          fi
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain_path"
+          security import "$certificate_path" -P "$APPLE_DEVELOPER_ID_APPLICATION_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain_path"
+          security list-keychains -d user -s "$keychain_path"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$keychain_path"
 
       - name: Get version
         id: version
         run: |
-          if [[ $GITHUB_REF == refs/tags/* ]]; then
-            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
           else
-            echo "version=dev-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+            echo "version=dev-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build binary
+      - name: Build linked binary
         env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           mkdir -p dist
-          BINARY_NAME="podhnologic-${{ matrix.goos }}-${{ matrix.goarch }}"
-          if [ "${{ matrix.goos }}" = "windows" ]; then
-            BINARY_NAME="${BINARY_NAME}.exe"
+          ./scripts/build-linked.sh "${{ matrix.target }}"
+          suffix=""
+          if [[ "${{ matrix.target }}" == windows-* ]]; then
+            suffix=".exe"
           fi
-          go build -ldflags "-s -w -X main.Version=${VERSION}" -o "dist/${BINARY_NAME}" .
+          cp "build/podhnologic-${{ matrix.target }}${suffix}" dist/
 
-          # Create checksums
+      - name: Sign macOS binary
+        if: startsWith(matrix.target, 'darwin-')
+        env:
+          APPLE_CODESIGN_IDENTITY: ${{ secrets.APPLE_CODESIGN_IDENTITY }}
+          PODHNOLOGIC_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID || '88M7JPMLS6' }}
+        run: |
+          ./scripts/sign-macos.sh "dist/podhnologic-${{ matrix.target }}"
+
+      - name: Notarize macOS binary
+        if: startsWith(matrix.target, 'darwin-')
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID || '88M7JPMLS6' }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APP_STORE_CONNECT_API_KEY_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY_ID }}
+          APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_P8_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8_BASE64 }}
+        run: |
+          if [[ -n "${APP_STORE_CONNECT_API_KEY_P8_BASE64:-}" ]]; then
+            test -n "${APP_STORE_CONNECT_API_KEY_KEY_ID:-}"
+            key_path="$RUNNER_TEMP/AuthKey_${APP_STORE_CONNECT_API_KEY_KEY_ID}.p8"
+            if ! printf '%s' "$APP_STORE_CONNECT_API_KEY_P8_BASE64" | base64 --decode > "$key_path" 2>/dev/null; then
+              printf '%s' "$APP_STORE_CONNECT_API_KEY_P8_BASE64" | base64 -D > "$key_path"
+            fi
+            export APP_STORE_CONNECT_API_KEY_KEY_FILEPATH="$key_path"
+          fi
+          ./scripts/notarize-macos.sh "dist/podhnologic-${{ matrix.target }}"
+
+      - name: Create checksum
+        run: |
           cd dist
-          sha256sum "${BINARY_NAME}" > "${BINARY_NAME}.sha256"
+          for artifact in podhnologic-*; do
+            if command -v sha256sum >/dev/null 2>&1; then
+              sha256sum "$artifact" > "$artifact.sha256"
+            else
+              shasum -a 256 "$artifact" > "$artifact.sha256"
+            fi
+          done
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: podhnologic-${{ matrix.goos }}-${{ matrix.goarch }}
+          name: podhnologic-${{ matrix.target }}
           path: dist/*
 
   release:
     name: Create release
-    needs: build
+    needs:
+      - build-web
+      - build-native
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download all artifacts
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
 
       - name: Create release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: dist/*
           draft: false
@@ -99,41 +197,20 @@ jobs:
           body: |
             ## Installation
 
-            Download the appropriate binary for your system:
-
-            - **Linux (amd64)**: `podhnologic-linux-amd64`
-            - **Linux (arm64)**: `podhnologic-linux-arm64`
-            - **macOS (Intel)**: `podhnologic-darwin-amd64`
-            - **macOS (Apple Silicon)**: `podhnologic-darwin-arm64`
-            - **Windows (amd64)**: `podhnologic-windows-amd64.exe`
-
-            ### Linux / macOS
-
-            ```bash
-            # Download and make executable
-            chmod +x podhnologic-*
-
-            # Move to a directory in your PATH
-            sudo mv podhnologic-* /usr/local/bin/podhnologic
-
-            # Run it!
-            podhnologic
+            ```sh
+            curl -fsSL https://raw.githubusercontent.com/jmonster/podhnologic/main/install.sh | bash
             ```
 
-            ### Windows
+            The installer downloads the matching binary and verifies its SHA-256 checksum.
 
-            1. Download `podhnologic-windows-amd64.exe`
-            2. Rename to `podhnologic.exe`
-            3. Move to a directory in your PATH or run directly
+            ## Downloads
 
-            ## Verify checksums
+            - `podhnologic-darwin-arm64`
+            - `podhnologic-darwin-amd64`
+            - `podhnologic-linux-amd64`
+            - `podhnologic-linux-arm64`
+            - `podhnologic-windows-amd64.exe`
 
-            SHA256 checksums are provided for each binary (`.sha256` files).
-
-            ```bash
-            sha256sum -c podhnologic-*.sha256
-            ```
-
-            See the [README](https://github.com/jmonster/podhnologic/blob/main/README.md) for full documentation.
+            Native binaries link FFmpeg directly into podhnologic. macOS binaries are Developer ID signed and notarized.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

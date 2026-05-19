@@ -1,0 +1,98 @@
+---
+import '../styles/global.css';
+
+const defaultCoreBaseUrl = import.meta.env.PUBLIC_FFMPEG_CORE_BASE_URL ?? '/ffmpeg-core';
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Audio converter</title>
+  </head>
+  <body>
+    <main class="page">
+      <h1 class="title">Audio converter</h1>
+      <p class="subtitle">Choose audio files, set the output codec, and convert in the browser with ffmpeg.wasm.</p>
+
+      <form id="converter-form" class="surface" novalidate>
+        <div class="surface-header">
+          <strong>Conversion settings</strong>
+          <button id="convert-button" class="button" type="submit">Convert</button>
+        </div>
+
+        <div class="surface-body">
+          <div class="grid controls">
+            <label class="field span-12">
+              <span>Files</span>
+              <input id="files" type="file" accept="audio/*" multiple />
+            </label>
+
+            <label class="field span-6">
+              <span>Output format</span>
+              <select id="format">
+                <option value="aac" selected>AAC</option>
+                <option value="alac">ALAC</option>
+                <option value="flac">FLAC</option>
+                <option value="mp3">MP3</option>
+                <option value="opus">Opus</option>
+                <option value="wav">WAV</option>
+              </select>
+            </label>
+
+            <label class="field span-6">
+              <span>Bitrate, kbps</span>
+              <input id="bitrate" type="number" min="32" max="320" step="16" value="256" />
+            </label>
+
+            <label class="field span-4">
+              <span>Sample rate</span>
+              <select id="sample-rate">
+                <option value="44100">44100</option>
+                <option value="48000" selected>48000</option>
+                <option value="96000">96000</option>
+              </select>
+            </label>
+
+            <label class="field span-4">
+              <span>Channels</span>
+              <select id="channels">
+                <option value="1">Mono</option>
+                <option value="2" selected>Stereo</option>
+              </select>
+            </label>
+
+            <label class="field span-4">
+              <span>Core base path</span>
+              <input id="core-base" type="text" value={defaultCoreBaseUrl} spellcheck="false" />
+            </label>
+          </div>
+        </div>
+      </form>
+
+      <section class="surface" aria-live="polite">
+        <div class="surface-header">
+          <strong>Run status</strong>
+          <output id="status" class="status">Idle</output>
+        </div>
+        <div class="surface-body">
+          <progress id="progress" class="progress" value="0" max="1"></progress>
+          <pre id="log" class="log"></pre>
+        </div>
+      </section>
+
+      <section class="surface">
+        <div class="surface-header">
+          <strong>Downloads</strong>
+        </div>
+        <div class="surface-body">
+          <ul id="results" class="results">
+            <li class="status">No output yet.</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <script src="../lib/converter-ui.ts"></script>
+  </body>
+</html>

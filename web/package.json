@@ -1,0 +1,22 @@
+{
+  "name": "podhnologic-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync-core": "node ./scripts/sync-ffmpeg-core.mjs",
+    "dev": "pnpm sync-core && astro dev --host 127.0.0.1 --port 4321",
+    "build": "pnpm sync-core && astro build",
+    "preview": "pnpm sync-core && astro preview",
+    "test:e2e": "pnpm sync-core && playwright test"
+  },
+  "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.10",
+    "@ffmpeg/util": "^0.12.1",
+    "astro": "^5.10.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@types/node": "^25.9.0",
+    "typescript": "^5.8.0"
+  }
+}

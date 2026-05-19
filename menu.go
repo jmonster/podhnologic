@@ -18,29 +18,29 @@ type menuItem struct {
 }
 
 type menuModel struct {
-	config        *Config
-	configDir     string
-	items         []menuItem
-	cursor        int
-	width         int
-	height        int
-	quitting      bool
-	shouldStart   bool
-	errorMessage  string
+	config         *Config
+	configDir      string
+	items          []menuItem
+	cursor         int
+	width          int
+	height         int
+	quitting       bool
+	shouldStart    bool
+	errorMessage   string
 	successMessage string
 }
 
 var (
-	selectedItemStyle   lipgloss.Style
-	normalItemStyle     lipgloss.Style
-	shortcutStyle       lipgloss.Style
-	valueStyle          lipgloss.Style
-	emptyValueStyle     lipgloss.Style
-	menuTitleStyle      lipgloss.Style
-	errorStyle          lipgloss.Style
-	successStyle        lipgloss.Style
-	menuHelpStyle       lipgloss.Style
-	menuStylesInited    bool
+	selectedItemStyle lipgloss.Style
+	normalItemStyle   lipgloss.Style
+	shortcutStyle     lipgloss.Style
+	valueStyle        lipgloss.Style
+	emptyValueStyle   lipgloss.Style
+	menuTitleStyle    lipgloss.Style
+	errorStyle        lipgloss.Style
+	successStyle      lipgloss.Style
+	menuHelpStyle     lipgloss.Style
+	menuStylesInited  bool
 )
 
 func initMenuStyles() {
@@ -54,78 +54,78 @@ func initMenuStyles() {
 	isLight := !output.HasDarkBackground()
 
 	if isLight {
-		// Light mode: darker, high-contrast colors
+		// Light mode: darker, high-contrast Apple green colors
 		selectedItemStyle = lipgloss.NewStyle().
-			Background(lipgloss.Color("240")).   // Dark gray background
-			Foreground(lipgloss.Color("255")).   // White text
+			Background(lipgloss.Color(appleLightPhosphorDark)).
+			Foreground(lipgloss.Color(appleWhite)).
 			Bold(true).
 			PaddingLeft(2).
 			PaddingRight(2)
 
 		shortcutStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("208")).  // Orange
+			Foreground(lipgloss.Color(appleRainbowOrange)).
 			Bold(true)
 
 		valueStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("22"))   // Dark green
+			Foreground(lipgloss.Color(appleRainbowBlue))
 
 		emptyValueStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("240")). // Dark gray
+			Foreground(lipgloss.Color(appleGrayDark)).
 			Italic(true)
 
 		menuTitleStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("198")).  // Hot pink
+			Foreground(lipgloss.Color(appleLightPhosphorDark)).
 			Bold(true).
 			MarginTop(1).
 			MarginBottom(1)
 
 		errorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("160")).  // Dark red
+			Foreground(lipgloss.Color(appleRainbowRed)).
 			Bold(true)
 
 		successStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("22")).   // Dark green
+			Foreground(lipgloss.Color(appleLightPhosphorMid)).
 			Bold(true)
 
 		menuHelpStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("240"))   // Dark gray
+			Foreground(lipgloss.Color(appleGrayDark))
 
 	} else {
-		// Dark mode: bright, vibrant colors
+		// Dark mode: bright Apple II phosphor colors
 		selectedItemStyle = lipgloss.NewStyle().
-			Background(lipgloss.Color("213")).   // Hot pink background
-			Foreground(lipgloss.Color("16")).    // Black text
+			Background(lipgloss.Color(applePhosphorMid)).
+			Foreground(lipgloss.Color(appleBlack)).
 			Bold(true).
 			PaddingLeft(2).
 			PaddingRight(2)
 
 		shortcutStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("226")).  // Bright yellow
+			Foreground(lipgloss.Color(appleRainbowYellow)).
 			Bold(true)
 
 		valueStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("86"))    // Bright green
+			Foreground(lipgloss.Color(appleRainbowBlue))
 
 		emptyValueStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("243")). // Medium gray
+			Foreground(lipgloss.Color(appleGrayDim)).
 			Italic(true)
 
 		menuTitleStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("213")).  // Hot pink
+			Foreground(lipgloss.Color(applePhosphorBright)).
 			Bold(true).
 			MarginTop(1).
 			MarginBottom(1)
 
 		errorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("196")).  // Bright red
+			Foreground(lipgloss.Color(appleRainbowRed)).
 			Bold(true)
 
 		successStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("46")).   // Neon green
+			Foreground(lipgloss.Color(applePhosphorBright)).
 			Bold(true)
 
 		menuHelpStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("243"))   // Medium gray
+			Foreground(lipgloss.Color(appleGrayDim))
 	}
 
 	normalItemStyle = lipgloss.NewStyle().
@@ -404,28 +404,28 @@ func renderBanner() string {
 	var b strings.Builder
 
 	// Get colors - they're initialized already in banner.go
-	b.WriteString(fmt.Sprintf("%s%s", colorBold, colorHotPink))
+	b.WriteString(fmt.Sprintf("%s%s", colorBold, colorPhosphorGlow))
 	b.WriteString("  ██████╗  ██████╗ ██████╗ ██╗  ██╗███╗   ██╗ ██████╗ ██╗      ██████╗  ██████╗ ██╗ ██████╗\n")
-	b.WriteString(fmt.Sprintf("%s", colorTurquoise))
+	b.WriteString(fmt.Sprintf("%s", colorPhosphorMid))
 	b.WriteString("  ██╔══██╗██╔═══██╗██╔══██╗██║  ██║████╗  ██║██╔═══██╗██║     ██╔═══██╗██╔════╝ ██║██╔════╝\n")
-	b.WriteString(fmt.Sprintf("%s", colorYellow))
+	b.WriteString(fmt.Sprintf("%s", colorPhosphorBright))
 	b.WriteString("  ██████╔╝██║   ██║██║  ██║███████║██╔██╗ ██║██║   ██║██║     ██║   ██║██║  ███╗██║██║     \n")
-	b.WriteString(fmt.Sprintf("%s", colorOrange))
+	b.WriteString(fmt.Sprintf("%s", colorPhosphorDim))
 	b.WriteString("  ██╔═══╝ ██║   ██║██║  ██║██╔══██║██║╚██╗██║██║   ██║██║     ██║   ██║██║   ██║██║██║     \n")
-	b.WriteString(fmt.Sprintf("%s", colorHotPink))
+	b.WriteString(fmt.Sprintf("%s", colorPhosphorBright))
 	b.WriteString("  ██║     ╚██████╔╝██████╔╝██║  ██║██║ ╚████║╚██████╔╝███████╗╚██████╔╝╚██████╔╝██║╚██████╗\n")
-	b.WriteString(fmt.Sprintf("%s", colorTurquoise))
+	b.WriteString(fmt.Sprintf("%s", colorPhosphorMid))
 	b.WriteString("  ╚═╝      ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝\n")
 	b.WriteString(fmt.Sprintf("%s", colorReset))
 
 	// Music wave
 	b.WriteString(fmt.Sprintf("%s          %s♪%s  %s♫%s  %s♬%s  %s♪%s  %s♫%s  %s♬%s  %s♪%s  %s♫%s  %s♬%s  %s♪%s  %s♫%s  %s♬%s  %s♪%s  %s♫%s\n",
 		colorReset,
-		colorHotPink, colorReset, colorTurquoise, colorReset, colorYellow, colorReset,
-		colorOrange, colorReset, colorHotPink, colorReset, colorTurquoise, colorReset,
-		colorYellow, colorReset, colorOrange, colorReset, colorHotPink, colorReset,
-		colorTurquoise, colorReset, colorYellow, colorReset, colorOrange, colorReset,
-		colorHotPink, colorReset, colorTurquoise, colorReset))
+		colorPhosphorDim, colorReset, colorPhosphorMid, colorReset, colorPhosphorBright, colorReset,
+		colorPhosphorGlow, colorReset, colorPhosphorDim, colorReset, colorPhosphorMid, colorReset,
+		colorPhosphorBright, colorReset, colorPhosphorGlow, colorReset, colorPhosphorDim, colorReset,
+		colorPhosphorMid, colorReset, colorPhosphorBright, colorReset, colorPhosphorGlow, colorReset,
+		colorPhosphorDim, colorReset, colorPhosphorMid, colorReset))
 
 	return b.String()
 }
@@ -446,9 +446,9 @@ func selectCodec(current string) (string, error) {
 		Label: "Select Target Codec",
 		Items: codecs,
 		Templates: &promptui.SelectTemplates{
-			Active:   "▶ {{ . | cyan }}",
+			Active:   ansiHex(appleRainbowYellow) + "▶ {{ . }}" + colorReset,
 			Inactive: "  {{ . }}",
-			Selected: "✓ {{ . | green }}",
+			Selected: ansiHex(applePhosphorBright) + "✓ {{ . }}" + colorReset,
 		},
 		CursorPos: currentIndex,
 		Size:      6,

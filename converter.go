@@ -1,18 +1,21 @@
 package main
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
 )
 
-var audioExtensions = []string{".mp3", ".wav", ".flac", ".aac", ".opus", ".m4a", ".ogg"}
+var audioExtensions = []string{
+	".aa", ".aac", ".aax", ".ac3", ".aif", ".aiff", ".ape", ".au", ".caf",
+	".dsf", ".dts", ".flac", ".m4a", ".m4b", ".mka", ".mp3", ".mpc", ".oga",
+	".ogg", ".oma", ".opus", ".shn", ".tak", ".tta", ".voc", ".w64", ".wav",
+	".webm", ".wma", ".wv", ".xwma",
+}
 
 // Metadata represents audio file metadata
 type Metadata struct {
@@ -24,7 +27,7 @@ type Metadata struct {
 	} `json:"streams"`
 }
 
-func runConversion(config Config, ffmpegPath string, dryRun bool) error {
+func runConversion(config Config, dryRun bool) error {
 	if dryRun {
 		fmt.Println("=== DRY RUN MODE - No files will be converted ===")
 	}
@@ -54,7 +57,7 @@ func runConversion(config Config, ffmpegPath string, dryRun bool) error {
 	fmt.Printf("Using %d threads\n\n", runtime.NumCPU())
 
 	// Process files in parallel
-	return processFilesParallel(files, config, ffmpegPath, dryRun)
+	return processFilesParallel(files, config, dryRun)
 }
 
 func collectAudioFiles(rootDir string) ([]string, error) {
@@ -85,7 +88,7 @@ func isAudioFile(path string) bool {
 	return false
 }
 
-func processFilesParallel(files []string, config Config, ffmpegPath string, dryRun bool) error {
+func processFilesParallel(files []string, config Config, dryRun bool) error {
 	numWorkers := runtime.NumCPU()
 	fileChan := make(chan string, len(files))
 	errorChan := make(chan error, len(files))
@@ -103,7 +106,7 @@ func processFilesParallel(files []string, config Config, ffmpegPath string, dryR
 		go func() {
 			defer wg.Done()
 			for file := range fileChan {
-				if err := processFile(file, config, ffmpegPath, dryRun); err != nil {
+				if err := processFile(file, config, dryRun); err != nil {
 					errorChan <- err
 				}
 			}
@@ -115,16 +118,17 @@ func processFilesParallel(files []string, config Config, ffmpegPath string, dryR
 	close(errorChan)
 
 	// Check for errors
-	var errors []error
+	var errs []error
 	for err := range errorChan {
-		errors = append(errors, err)
+		errs = append(errs, err)
 	}
 
-	if len(errors) > 0 {
-		fmt.Printf("\n%d files failed to process\n", len(errors))
-		for _, err := range errors {
+	if len(errs) > 0 {
+		fmt.Printf("\n%d files failed to process\n", len(errs))
+		for _, err := range errs {
 			fmt.Printf("  - %v\n", err)
 		}
+		return errors.Join(errs...)
 	}
 
 	fmt.Println("\n✓ All tasks completed")
@@ -132,7 +136,7 @@ func processFilesParallel(files []string, config Config, ffmpegPath string, dryR
 	return nil
 }
 
-func processFile(inputPath string, config Config, ffmpegPath string, dryRun bool) error {
+func processFile(inputPath string, config Config, dryRun bool) error {
 	// Get relative path from input dir
 	relPath, err := filepath.Rel(config.InputDir, inputPath)
 	if err != nil {
@@ -152,10 +156,12 @@ func processFile(inputPath string, config Config, ffmpegPath string, dryRun bool
 		return nil
 	}
 
-	// Extract metadata
-	metadata, err := extractMetadata(inputPath, ffmpegPath)
-	if err != nil {
-		return fmt.Errorf("failed to extract metadata from %s: %w", inputPath, err)
+	metadata := &Metadata{}
+	if !dryRun {
+		metadata, err = extractMetadata(inputPath)
+		if err != nil {
+			return fmt.Errorf("failed to extract metadata from %s: %w", inputPath, err)
+		}
 	}
 
 	// Build ffmpeg command
@@ -163,7 +169,7 @@ func processFile(inputPath string, config Config, ffmpegPath string, dryRun bool
 
 	if dryRun {
 		fmt.Printf("[DRY RUN] %s -> %s\n", inputPath, outputPath)
-		fmt.Printf("  Command: %s %s\n\n", ffmpegPath, strings.Join(args, " "))
+		fmt.Printf("  FFmpeg args: %s\n\n", strings.Join(args, " "))
 		return nil
 	}
 
@@ -175,34 +181,9 @@ func processFile(inputPath string, config Config, ffmpegPath string, dryRun bool
 	// Run ffmpeg
 	fmt.Printf("Converting: %s\n", relPath)
 
-	cmd := execCommand(ffmpegPath, args...)
-
-	// Capture stderr for error reporting
-	stderr, err := cmd.StderrPipe()
+	output, err := runFFmpeg(args)
 	if err != nil {
-		return err
-	}
-
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start ffmpeg: %w", err)
-	}
-
-	// Read stderr in a goroutine to avoid blocking
-	var stderrData []byte
-	stderrDone := make(chan struct{})
-	go func() {
-		stderrData, _ = io.ReadAll(stderr)
-		close(stderrDone)
-	}()
-
-	// Wait for ffmpeg to complete
-	cmdErr := cmd.Wait()
-
-	// Wait for stderr to finish being read
-	<-stderrDone
-
-	if cmdErr != nil {
-		return fmt.Errorf("conversion failed for %s: %w\nFFmpeg output: %s", inputPath, cmdErr, string(stderrData))
+		return fmt.Errorf("conversion failed for %s: %w\nFFmpeg output: %s", inputPath, err, string(output))
 	}
 
 	fmt.Printf("✓ Completed: %s\n", relPath)
@@ -210,28 +191,8 @@ func processFile(inputPath string, config Config, ffmpegPath string, dryRun bool
 	return nil
 }
 
-func extractMetadata(filePath, ffmpegPath string) (*Metadata, error) {
-	ffprobePath := getFFprobePath(ffmpegPath)
-
-	cmd := execCommand(ffprobePath,
-		"-v", "quiet",
-		"-print_format", "json",
-		"-show_format",
-		"-show_streams",
-		filePath,
-	)
-
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, err
-	}
-
-	var metadata Metadata
-	if err := json.Unmarshal(output, &metadata); err != nil {
-		return nil, err
-	}
-
-	return &metadata, nil
+func extractMetadata(filePath string) (*Metadata, error) {
+	return probeMetadata(filePath)
 }
 
 func buildFFmpegArgs(inputPath, outputPath string, config Config, metadata *Metadata) []string {
@@ -259,8 +220,6 @@ func buildFFmpegArgs(inputPath, outputPath string, config Config, metadata *Meta
 		}
 	}
 
-	// Add codec-specific parameters - we need to pass ffmpegPath here
-	// For now, use a default encoder selection
 	args = append(args, getCodecParamsSimple(config)...)
 
 	// Add output path
@@ -322,10 +281,4 @@ func getOutputExtension(codec string) string {
 	}
 
 	return ".m4a" // default
-}
-
-// execCommand is a helper to create exec.Command
-// This is separate so we can mock it in tests if needed
-func execCommand(name string, args ...string) *exec.Cmd {
-	return exec.Command(name, args...)
 }

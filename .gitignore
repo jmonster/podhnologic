@@ -11,9 +11,6 @@ build/
 podhnologic
 podhnologic-*
 
-# Embedded ffmpeg binaries (downloaded by script)
-binaries/
-
 # Test binaries
 *.test
 

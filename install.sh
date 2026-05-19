@@ -2,7 +2,7 @@
 set -e
 
 # Podhnologic Installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/jmonster/podhnologic/main/install.sh | sh
+# Usage: curl -fsSL https://raw.githubusercontent.com/jmonster/podhnologic/main/install.sh | bash
 # Note: POSIX-compliant, works with sh, dash, bash, etc.
 
 # Colors
@@ -102,6 +102,39 @@ download_file() {
         printf "${RED}Neither curl nor wget found. Please install one of them.${NC}\n"
         exit 1
     fi
+}
+
+verify_checksum() {
+    local binary_path="$1"
+    local checksum_path="$2"
+    local expected=""
+    local actual=""
+
+    expected=$(awk '{print $1}' "$checksum_path")
+    if [ -z "$expected" ]; then
+        printf "${RED}Checksum file is empty or invalid.${NC}\n"
+        exit 1
+    fi
+
+    if command -v sha256sum >/dev/null 2>&1; then
+        actual=$(sha256sum "$binary_path" | awk '{print $1}')
+    elif command -v shasum >/dev/null 2>&1; then
+        actual=$(shasum -a 256 "$binary_path" | awk '{print $1}')
+    elif command -v openssl >/dev/null 2>&1; then
+        actual=$(openssl dgst -sha256 "$binary_path" | awk '{print $NF}')
+    else
+        printf "${RED}No SHA-256 tool found. Install sha256sum, shasum, or openssl and retry.${NC}\n"
+        exit 1
+    fi
+
+    if [ "$actual" != "$expected" ]; then
+        printf "${RED}Checksum verification failed.${NC}\n"
+        printf "${YELLOW}Expected:${NC} %s\n" "$expected"
+        printf "${YELLOW}Actual:${NC}   %s\n" "$actual"
+        exit 1
+    fi
+
+    printf "${GREEN}Checksum verified${NC}\n"
 }
 
 # Add to PATH on Windows
@@ -265,7 +298,7 @@ show_next_steps() {
 
     printf "${GREEN}Features:${NC}\n"
     printf "  - Interactive terminal UI with keyboard shortcuts\n"
-    printf "  - FFmpeg embedded - no installation needed\n"
+    printf "  - FFmpeg linked in - no installation needed\n"
     printf "  - Multi-threaded conversion using all CPU cores\n"
     printf "  - iPod optimized conversions\n"
     echo ""
@@ -297,11 +330,15 @@ main() {
         windows-*) binary_suffix=".exe" ;;
     esac
 
-    DOWNLOAD_URL="https://github.com/${REPO}/releases/latest/download/${BINARY_NAME}-${PLATFORM}${binary_suffix}"
+    ASSET_NAME="${BINARY_NAME}-${PLATFORM}${binary_suffix}"
+    DOWNLOAD_URL="https://github.com/${REPO}/releases/latest/download/${ASSET_NAME}"
+    CHECKSUM_URL="${DOWNLOAD_URL}.sha256"
 
     # Download binary
-    BINARY_PATH="${TMP_DIR}/${BINARY_NAME}${binary_suffix}"
+    BINARY_PATH="${TMP_DIR}/${ASSET_NAME}"
+    CHECKSUM_PATH="${TMP_DIR}/${ASSET_NAME}.sha256"
     download_file "$DOWNLOAD_URL" "$BINARY_PATH"
+    download_file "$CHECKSUM_URL" "$CHECKSUM_PATH"
 
     # Check if download was successful
     if [ ! -f "$BINARY_PATH" ] || [ ! -s "$BINARY_PATH" ]; then
@@ -313,6 +350,15 @@ main() {
         printf "  3. The download URL: ${DOWNLOAD_URL}\n"
         exit 1
     fi
+
+    if [ ! -f "$CHECKSUM_PATH" ] || [ ! -s "$CHECKSUM_PATH" ]; then
+        echo ""
+        printf "${RED}Checksum download failed or file is empty${NC}\n"
+        printf "${YELLOW}Please check the release asset: ${CHECKSUM_URL}${NC}\n"
+        exit 1
+    fi
+
+    verify_checksum "$BINARY_PATH" "$CHECKSUM_PATH"
     echo ""
 
     # Install binary

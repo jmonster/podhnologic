@@ -2,26 +2,64 @@ package main
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/muesli/termenv"
 )
 
+const (
+	appleBlack = "#000000"
+	appleWhite = "#f4ffe8"
+
+	applePhosphorDark   = "#0f7a00"
+	applePhosphorMid    = "#22cc00"
+	applePhosphorBright = "#7cff00"
+	applePhosphorGlow   = "#b6ff00"
+	applePhosphorDim    = "#4d8f00"
+
+	appleRainbowGreen  = "#61bb46"
+	appleRainbowYellow = "#fdb827"
+	appleRainbowOrange = "#f5821f"
+	appleRainbowRed    = "#e03a3e"
+	appleRainbowBlue   = "#009ddc"
+	appleGrayDim       = "#6f7f6c"
+	appleGrayDark      = "#4f5d4c"
+
+	appleLightPhosphorDark = "#006d1f"
+	appleLightPhosphorMid  = "#178a00"
+)
+
 // ANSI color codes - will be initialized based on terminal background
 var (
-	colorReset  string
-	colorRed    string
-	colorGreen  string
-	colorYellow string
-	colorBlue   string
-	colorPurple string
-	colorCyan   string
-	colorWhite  string
-	colorBold   string
-	// Memphis design inspired colors
-	colorHotPink   string
-	colorTurquoise string
-	colorOrange    string
+	colorReset   string
+	colorRed     string
+	colorGreen   string
+	colorWarning string
+	colorInfo    string
+	colorBold    string
+	// Banner accent colors
+	colorPhosphorGlow   string
+	colorPhosphorBright string
+	colorPhosphorMid    string
+	colorPhosphorDim    string
 )
+
+func ansiHex(color string) string {
+	hex := strings.TrimPrefix(color, "#")
+	if len(hex) != 6 {
+		return ""
+	}
+
+	r, errR := strconv.ParseInt(hex[0:2], 16, 0)
+	g, errG := strconv.ParseInt(hex[2:4], 16, 0)
+	b, errB := strconv.ParseInt(hex[4:6], 16, 0)
+	if errR != nil || errG != nil || errB != nil {
+		return ""
+	}
+
+	return fmt.Sprintf("\033[38;2;%d;%d;%dm", r, g, b)
+}
 
 func init() {
 	initColors()
@@ -37,59 +75,55 @@ func initColors() {
 	isLight := !output.HasDarkBackground()
 
 	if isLight {
-		// Light mode: Memphis design with darker, saturated colors
-		colorRed = "\033[38;5;160m"       // Dark red
-		colorGreen = "\033[38;5;28m"      // Dark green
-		colorYellow = "\033[38;5;178m"    // Memphis yellow
-		colorBlue = "\033[38;5;26m"       // Dark blue
-		colorPurple = "\033[38;5;90m"     // Dark purple
-		colorCyan = "\033[38;5;30m"       // Dark cyan
-		colorWhite = "\033[38;5;240m"     // Dark gray
-		colorHotPink = "\033[38;5;198m"   // Hot pink
-		colorTurquoise = "\033[38;5;44m"  // Turquoise
-		colorOrange = "\033[38;5;208m"    // Orange
+		// Light mode: darker Apple green terminal colors
+		colorRed = ansiHex(appleRainbowRed)
+		colorGreen = ansiHex(appleLightPhosphorMid)
+		colorWarning = ansiHex(appleRainbowOrange)
+		colorInfo = ansiHex(appleRainbowBlue)
+		colorPhosphorGlow = ansiHex(appleLightPhosphorMid)
+		colorPhosphorBright = ansiHex(appleRainbowGreen)
+		colorPhosphorMid = ansiHex(appleLightPhosphorDark)
+		colorPhosphorDim = ansiHex(appleGrayDark)
 	} else {
-		// Dark mode: Memphis design with bright, vibrant colors
-		colorRed = "\033[38;5;196m"       // Bright red
-		colorGreen = "\033[38;5;46m"      // Neon green
-		colorYellow = "\033[38;5;226m"    // Bright yellow
-		colorBlue = "\033[38;5;39m"       // Bright blue
-		colorPurple = "\033[38;5;135m"    // Bright purple
-		colorCyan = "\033[38;5;51m"       // Bright cyan
-		colorWhite = "\033[37m"           // White
-		colorHotPink = "\033[38;5;213m"   // Hot pink
-		colorTurquoise = "\033[38;5;51m"  // Turquoise
-		colorOrange = "\033[38;5;214m"    // Orange
+		// Dark mode: Apple II phosphor greens
+		colorRed = ansiHex(appleRainbowRed)
+		colorGreen = ansiHex(applePhosphorBright)
+		colorWarning = ansiHex(appleRainbowOrange)
+		colorInfo = ansiHex(appleRainbowBlue)
+		colorPhosphorGlow = ansiHex(applePhosphorGlow)
+		colorPhosphorBright = ansiHex(applePhosphorBright)
+		colorPhosphorMid = ansiHex(applePhosphorMid)
+		colorPhosphorDim = ansiHex(applePhosphorDim)
 	}
 }
 
 func printBanner() {
 	fmt.Println()
 
-	// Title with Memphis design colors - bold, contrasting, playful
-	fmt.Printf("%s%s", colorBold, colorHotPink)
+	// Title with Apple II phosphor green tones
+	fmt.Printf("%s%s", colorBold, colorPhosphorGlow)
 	fmt.Println("  ██████╗  ██████╗ ██████╗ ██╗  ██╗███╗   ██╗ ██████╗ ██╗      ██████╗  ██████╗ ██╗ ██████╗")
-	fmt.Printf("%s", colorTurquoise)
+	fmt.Printf("%s", colorPhosphorMid)
 	fmt.Println("  ██╔══██╗██╔═══██╗██╔══██╗██║  ██║████╗  ██║██╔═══██╗██║     ██╔═══██╗██╔════╝ ██║██╔════╝")
-	fmt.Printf("%s", colorYellow)
+	fmt.Printf("%s", colorPhosphorBright)
 	fmt.Println("  ██████╔╝██║   ██║██║  ██║███████║██╔██╗ ██║██║   ██║██║     ██║   ██║██║  ███╗██║██║     ")
-	fmt.Printf("%s", colorOrange)
+	fmt.Printf("%s", colorPhosphorDim)
 	fmt.Println("  ██╔═══╝ ██║   ██║██║  ██║██╔══██║██║╚██╗██║██║   ██║██║     ██║   ██║██║   ██║██║██║     ")
-	fmt.Printf("%s", colorHotPink)
+	fmt.Printf("%s", colorPhosphorBright)
 	fmt.Println("  ██║     ╚██████╔╝██████╔╝██║  ██║██║ ╚████║╚██████╔╝███████╗╚██████╔╝╚██████╔╝██║╚██████╗")
-	fmt.Printf("%s", colorTurquoise)
+	fmt.Printf("%s", colorPhosphorMid)
 	fmt.Println("  ╚═╝      ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝")
 	fmt.Printf("%s", colorReset)
 	fmt.Println()
 
-	// Music wave with Memphis colors
+	// Music wave with phosphor greens
 	fmt.Printf("%s          %s♪%s  %s♫%s  %s♬%s  %s♪%s  %s♫%s  %s♬%s  %s♪%s  %s♫%s  %s♬%s  %s♪%s  %s♫%s  %s♬%s  %s♪%s  %s♫%s\n",
 		colorReset,
-		colorHotPink, colorReset, colorTurquoise, colorReset, colorYellow, colorReset,
-		colorOrange, colorReset, colorHotPink, colorReset, colorTurquoise, colorReset,
-		colorYellow, colorReset, colorOrange, colorReset, colorHotPink, colorReset,
-		colorTurquoise, colorReset, colorYellow, colorReset, colorOrange, colorReset,
-		colorHotPink, colorReset, colorTurquoise, colorReset)
+		colorPhosphorDim, colorReset, colorPhosphorMid, colorReset, colorPhosphorBright, colorReset,
+		colorPhosphorGlow, colorReset, colorPhosphorDim, colorReset, colorPhosphorMid, colorReset,
+		colorPhosphorBright, colorReset, colorPhosphorGlow, colorReset, colorPhosphorDim, colorReset,
+		colorPhosphorMid, colorReset, colorPhosphorBright, colorReset, colorPhosphorGlow, colorReset,
+		colorPhosphorDim, colorReset, colorPhosphorMid, colorReset)
 
 	fmt.Println()
 }
@@ -103,9 +137,9 @@ func printError(message string) {
 }
 
 func printInfo(message string) {
-	fmt.Printf("%s%s→%s %s\n", colorBold, colorCyan, colorReset, message)
+	fmt.Printf("%s%s→%s %s\n", colorBold, colorInfo, colorReset, message)
 }
 
 func printWarning(message string) {
-	fmt.Printf("%s%s⚠%s  %s\n", colorBold, colorYellow, colorReset, message)
+	fmt.Printf("%s%s⚠%s  %s\n", colorBold, colorWarning, colorReset, message)
 }

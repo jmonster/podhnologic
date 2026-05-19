@@ -1,109 +1,82 @@
 # Makefile for podhnologic
 
-# Ensure homebrew Go is in PATH
 export PATH := /opt/homebrew/bin:/usr/local/bin:$(PATH)
 
-# Binary name
 BINARY_NAME=podhnologic
-
-# Version
-VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-
-# Build directory
 BUILD_DIR=build
-
-# Go parameters
 GOCMD=go
-GOBUILD=$(GOCMD) build
-GOCLEAN=$(GOCMD) clean
 GOTEST=$(GOCMD) test
-GOGET=$(GOCMD) get
-GOMOD=$(GOCMD) mod
 
-# Build flags
-LDFLAGS=-ldflags "-s -w -X main.Version=$(VERSION)"
-
-.PHONY: all build clean test deps run install build-all download-binaries
+.PHONY: all build build-all build-darwin-amd64 build-darwin-arm64 build-linux-amd64 build-linux-arm64 build-windows-amd64 build-windows-arm64 clean deps help install linked-test run test web-build
 
 all: test build
 
-# Download ffmpeg binaries for embedding
-download-binaries:
-	@echo "Downloading ffmpeg binaries for all platforms..."
-	@./scripts/download-ffmpeg.sh
+build:
+	@./scripts/build-linked.sh
 
-# Build for current platform (with embedded binaries)
-build: check-binaries
-	@echo "Building $(BINARY_NAME) for current platform..."
-	@mkdir -p $(BUILD_DIR)
-	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) .
-	@echo "Build complete: $(BUILD_DIR)/$(BINARY_NAME)"
+build-all: build-darwin-amd64 build-darwin-arm64 build-linux-amd64 build-linux-arm64 build-windows-amd64
 
-# Build for all platforms (with embedded binaries)
-build-all: check-binaries build-linux build-darwin build-windows
+build-darwin-amd64:
+	@./scripts/build-linked.sh darwin-amd64
 
-# Check if binaries directory exists
-check-binaries:
-	@if [ ! -d "binaries" ]; then \
-		echo "Error: binaries/ directory not found."; \
-		echo "Run 'make download-binaries' first to download ffmpeg binaries."; \
-		exit 1; \
-	fi
+build-darwin-arm64:
+	@./scripts/build-linked.sh darwin-arm64
 
-build-linux:
-	@echo "Building for Linux (amd64)..."
-	@mkdir -p $(BUILD_DIR)
-	GOOS=linux GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 .
-	@echo "Building for Linux (arm64)..."
-	GOOS=linux GOARCH=arm64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-arm64 .
+build-linux-amd64:
+	@./scripts/build-linked.sh linux-amd64
 
-build-darwin:
-	@echo "Building for macOS (amd64)..."
-	@mkdir -p $(BUILD_DIR)
-	GOOS=darwin GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-amd64 .
-	@echo "Building for macOS (arm64)..."
-	GOOS=darwin GOARCH=arm64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-arm64 .
+build-linux-arm64:
+	@./scripts/build-linked.sh linux-arm64
 
-build-windows:
-	@echo "Building for Windows (amd64)..."
-	@mkdir -p $(BUILD_DIR)
-	GOOS=windows GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-windows-amd64.exe .
+build-windows-amd64:
+	@./scripts/build-linked.sh windows-amd64
 
-# Install dependencies
+build-windows-arm64:
+	@./scripts/build-linked.sh windows-arm64
+
 deps:
-	@echo "Downloading dependencies..."
-	$(GOMOD) download
-	$(GOMOD) tidy
+	@$(GOCMD) mod download
+	@$(GOCMD) mod tidy
+	@cd web && pnpm install --frozen-lockfile
 
-# Run tests
 test:
-	@echo "Running tests..."
-	$(GOTEST) -v ./...
+	@$(GOTEST) -v ./...
 
-# Clean build artifacts
+linked-test: build
+	@case "$$(uname -s):$$(uname -m)" in \
+		Darwin:arm64|Darwin:aarch64) target="darwin-arm64"; cc="clang"; cflags="-arch arm64"; ldflags="-arch arm64" ;; \
+		Darwin:x86_64) target="darwin-amd64"; cc="clang"; cflags="-arch x86_64"; ldflags="-arch x86_64" ;; \
+		Linux:x86_64|Linux:amd64) target="linux-amd64"; cc="cc"; cflags=""; ldflags="" ;; \
+		Linux:arm64|Linux:aarch64) target="linux-arm64"; cc="cc"; cflags=""; ldflags="" ;; \
+		*) echo "unsupported linked-test host: $$(uname -s)/$$(uname -m)" >&2; exit 1 ;; \
+	esac; \
+	prefix="$(CURDIR)/scripts/ffmpeg/dist/$$target"; \
+	export CC="$$cc"; \
+	export CGO_ENABLED=1; \
+	export PKG_CONFIG_PATH="$$prefix/lib/pkgconfig"; \
+	export CGO_CFLAGS="$$cflags -I$$prefix/include"; \
+	export CGO_LDFLAGS="$$ldflags -L$$prefix/lib -lpodhnologicffmpeg $$(pkg-config --static --libs libavfilter libavformat libavcodec libswresample libswscale libavutil)"; \
+	$(GOTEST) -v -tags 'linkedffmpeg_cgo linkedffmpeg_hidden' ./...
+
+web-build:
+	@cd web && pnpm build
+
 clean:
-	@echo "Cleaning..."
-	$(GOCLEAN)
-	rm -rf $(BUILD_DIR)
+	@$(GOCMD) clean
+	@rm -rf $(BUILD_DIR)
 
-# Install to system
 install: build
-	@echo "Installing $(BINARY_NAME)..."
-	cp $(BUILD_DIR)/$(BINARY_NAME) /usr/local/bin/
-	@echo "Installed to /usr/local/bin/$(BINARY_NAME)"
+	@cp "$$(ls -t $(BUILD_DIR)/$(BINARY_NAME)-* | head -1)" /usr/local/bin/$(BINARY_NAME)
 
-# Run the application
 run: build
-	./$(BUILD_DIR)/$(BINARY_NAME)
+	@"$$(ls -t $(BUILD_DIR)/$(BINARY_NAME)-* | head -1)"
 
-# Show help
 help:
 	@echo "Available targets:"
-	@echo "  make download-binaries - Download ffmpeg binaries for embedding"
-	@echo "  make build             - Build for current platform (with embedded binaries)"
-	@echo "  make build-all         - Build for all platforms (with embedded binaries)"
-	@echo "  make deps              - Download Go dependencies"
-	@echo "  make test              - Run tests"
-	@echo "  make clean             - Remove build artifacts"
-	@echo "  make install           - Install to /usr/local/bin"
-	@echo "  make run               - Build and run"
+	@echo "  make build              Build linked binary for this host"
+	@echo "  make build-all          Build configured native targets"
+	@echo "  make test               Run Go tests"
+	@echo "  make linked-test        Run Go tests with linked FFmpeg tags"
+	@echo "  make web-build          Build the Astro web app"
+	@echo "  make clean              Remove build artifacts"
+	@echo "  make install            Install to /usr/local/bin"

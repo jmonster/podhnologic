@@ -7,14 +7,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 const (
-	Version = "4.0.0"
+	Version = "4.1.0"
 )
 
 // Config represents the user's saved configuration
@@ -98,19 +97,13 @@ func main() {
 		saveConfig(configDir, config)
 	}
 
-	// Ensure we have ffmpeg (uses embedded binaries)
-	ffmpegPath, err := ensureFFmpeg(configDir)
-	if err != nil {
-		log.Fatalf("Failed to ensure ffmpeg is available: %v", err)
-	}
-
 	// Set default codec for iPod mode
 	if config.Codec == "" && config.IPod {
 		config.Codec = "aac"
 	}
 
 	// Run the conversion
-	if err := runConversion(config, ffmpegPath, *dryRunFlag); err != nil {
+	if err := runConversion(config, *dryRunFlag); err != nil {
 		log.Fatalf("Conversion failed: %v", err)
 	}
 }
@@ -220,117 +213,4 @@ func expandPath(path string) string {
 		return filepath.Join(homeDir, path[2:])
 	}
 	return path
-}
-
-func getFFmpegDownloadURL() (string, error) {
-	os := runtime.GOOS
-	arch := runtime.GOARCH
-
-	// Map of platform/arch to download URLs
-	// Using static builds from https://github.com/BtbN/FFmpeg-Builds (Linux/Windows)
-	// and https://evermeet.cx/ffmpeg/ (macOS)
-
-	switch os {
-	case "linux":
-		if arch == "amd64" {
-			return "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz", nil
-		} else if arch == "arm64" {
-			return "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linuxarm64-gpl.tar.xz", nil
-		}
-	case "darwin":
-		// For macOS, we'll use homebrew or prompt user to install
-		// For now, return an error suggesting manual installation
-		return "", fmt.Errorf("macOS: please install ffmpeg via 'brew install ffmpeg'")
-	case "windows":
-		if arch == "amd64" {
-			return "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip", nil
-		}
-	}
-
-	return "", fmt.Errorf("unsupported platform: %s/%s", os, arch)
-}
-
-func ensureFFmpeg(configDir string) (string, error) {
-	binDir := filepath.Join(configDir, "bin")
-	localFFmpeg := filepath.Join(binDir, "ffmpeg")
-	if runtime.GOOS == "windows" {
-		localFFmpeg += ".exe"
-	}
-
-	// Priority 1: Check if we have embedded binaries and extract them
-	if hasEmbeddedBinaries() {
-		// Check if already extracted
-		if _, err := os.Stat(localFFmpeg); err == nil {
-			if testFFmpeg(localFFmpeg) == nil {
-				return localFFmpeg, nil
-			}
-		}
-
-		// Extract embedded binaries
-		printInfo("Extracting embedded ffmpeg binaries...")
-		if err := extractEmbeddedFFmpeg(binDir); err != nil {
-			fmt.Printf("Warning: Failed to extract embedded binaries: %v\n", err)
-			// Continue to other methods
-		} else {
-			if testFFmpeg(localFFmpeg) == nil {
-				return localFFmpeg, nil
-			}
-		}
-	}
-
-	// Priority 2: Try to find ffmpeg in PATH
-	if path, err := findInPath("ffmpeg"); err == nil {
-		if testFFmpeg(path) == nil {
-			fmt.Printf("Found ffmpeg in PATH: %s\n", path)
-			return path, nil
-		}
-	}
-
-	// Priority 3: Check if we already downloaded it
-	if _, err := os.Stat(localFFmpeg); err == nil {
-		if testFFmpeg(localFFmpeg) == nil {
-			return localFFmpeg, nil
-		}
-	}
-
-	// Priority 4: Download ffmpeg
-	fmt.Println("FFmpeg not found. Attempting to download...")
-
-	downloadURL, err := getFFmpegDownloadURL()
-	if err != nil {
-		return "", err
-	}
-
-	if err := downloadAndExtractFFmpeg(downloadURL, binDir); err != nil {
-		return "", fmt.Errorf("failed to download ffmpeg: %w", err)
-	}
-
-	return localFFmpeg, nil
-}
-
-func testFFmpeg(path string) error {
-	// Test if ffmpeg works by running -version
-	cmd := execCommand(path, "-version")
-	return cmd.Run()
-}
-
-func findInPath(binary string) (string, error) {
-	if runtime.GOOS == "windows" {
-		binary += ".exe"
-	}
-
-	pathEnv := os.Getenv("PATH")
-	separator := ":"
-	if runtime.GOOS == "windows" {
-		separator = ";"
-	}
-
-	for _, dir := range strings.Split(pathEnv, separator) {
-		fullPath := filepath.Join(dir, binary)
-		if _, err := os.Stat(fullPath); err == nil {
-			return fullPath, nil
-		}
-	}
-
-	return "", fmt.Errorf("%s not found in PATH", binary)
 }

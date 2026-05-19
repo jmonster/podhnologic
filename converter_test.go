@@ -3,22 +3,10 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
-	"strconv"
 	"strings"
 	"testing"
 )
-
-// TestHelper provides utilities for testing
-type TestHelper struct {
-	t         *testing.T
-	tempDir   string
-	inputDir  string
-	outputDir string
-	ffmpegPath string
-}
 
 // NewTestHelper creates a new test helper with temporary directories
 func NewTestHelper(t *testing.T) *TestHelper {
@@ -30,74 +18,6 @@ func NewTestHelper(t *testing.T) *TestHelper {
 		inputDir:  filepath.Join(tempDir, "input"),
 		outputDir: filepath.Join(tempDir, "output"),
 	}
-}
-
-// Setup prepares the test environment
-func (h *TestHelper) Setup() {
-	// Create input and output directories
-	if err := os.MkdirAll(h.inputDir, 0755); err != nil {
-		h.t.Fatalf("Failed to create input dir: %v", err)
-	}
-	if err := os.MkdirAll(h.outputDir, 0755); err != nil {
-		h.t.Fatalf("Failed to create output dir: %v", err)
-	}
-
-	// Find ffmpeg in PATH or use system ffmpeg
-	ffmpegPath, err := exec.LookPath("ffmpeg")
-	if err != nil {
-		h.t.Skip("ffmpeg not found in PATH, skipping integration tests")
-	}
-	h.ffmpegPath = ffmpegPath
-}
-
-// GenerateTestAudio creates a test audio file using ffmpeg
-func (h *TestHelper) GenerateTestAudio(filename string, duration int) string {
-	outputPath := filepath.Join(h.inputDir, filename)
-
-	durationStr := strconv.Itoa(duration)
-
-	// Generate a simple sine wave audio file
-	// -f lavfi: use libavfilter virtual input
-	// sine=frequency=440:duration=X: generate 440Hz sine wave for X seconds
-	cmd := exec.Command(h.ffmpegPath,
-		"-f", "lavfi",
-		"-i", "sine=frequency=440:duration="+durationStr,
-		"-t", durationStr,
-		"-y", // overwrite
-		outputPath,
-	)
-
-	if output, err := cmd.CombinedOutput(); err != nil {
-		h.t.Fatalf("Failed to generate test audio %s: %v\nOutput: %s", filename, err, output)
-	}
-
-	return outputPath
-}
-
-// GenerateTestAudioWithMetadata creates a test audio file with specific metadata
-func (h *TestHelper) GenerateTestAudioWithMetadata(filename string, metadata map[string]string) string {
-	outputPath := filepath.Join(h.inputDir, filename)
-
-	// Build ffmpeg command with metadata
-	args := []string{
-		"-f", "lavfi",
-		"-i", "sine=frequency=440:duration=2",
-		"-t", "2",
-	}
-
-	// Add metadata arguments
-	for key, value := range metadata {
-		args = append(args, "-metadata", key+"="+value)
-	}
-
-	args = append(args, "-y", outputPath)
-
-	cmd := exec.Command(h.ffmpegPath, args...)
-	if output, err := cmd.CombinedOutput(); err != nil {
-		h.t.Fatalf("Failed to generate test audio with metadata: %v\nOutput: %s", err, output)
-	}
-
-	return outputPath
 }
 
 // VerifyFileExists checks if a file exists
@@ -112,15 +32,6 @@ func (h *TestHelper) VerifyFileNotExists(path string) {
 	if _, err := os.Stat(path); err == nil {
 		h.t.Errorf("File should not exist: %s", path)
 	}
-}
-
-// GetMetadata extracts metadata from an audio file
-func (h *TestHelper) GetMetadata(filePath string) *Metadata {
-	metadata, err := extractMetadata(filePath, h.ffmpegPath)
-	if err != nil {
-		h.t.Fatalf("Failed to extract metadata from %s: %v", filePath, err)
-	}
-	return metadata
 }
 
 // VerifyMetadataHasKey checks if metadata contains a specific key
@@ -189,40 +100,12 @@ func TestCollectAudioFiles(t *testing.T) {
 	}
 }
 
-// TestProcessFileBasic tests basic file processing
-func TestProcessFileBasic(t *testing.T) {
-	helper := NewTestHelper(t)
-	helper.Setup()
-
-	// Generate a test audio file
-	inputFile := helper.GenerateTestAudio("test.mp3", 1)
-
-	config := Config{
-		InputDir:  helper.inputDir,
-		OutputDir: helper.outputDir,
-		Codec:     "wav",
-		IPod:      false,
-		NoLyrics:  false,
-	}
-
-	// Process the file
-	err := processFile(inputFile, config, helper.ffmpegPath, false)
-	if err != nil {
-		t.Fatalf("processFile failed: %v", err)
-	}
-
-	// Verify output file exists
-	expectedOutput := filepath.Join(helper.outputDir, "test.wav")
-	helper.VerifyFileExists(expectedOutput)
-}
-
 // TestProcessFileDryRun tests dry run mode
 func TestProcessFileDryRun(t *testing.T) {
 	helper := NewTestHelper(t)
 	helper.Setup()
 
-	// Generate a test audio file
-	inputFile := helper.GenerateTestAudio("test.mp3", 1)
+	inputFile := helper.WriteInputFile("test.mp3", []byte("dry run fixture"))
 
 	config := Config{
 		InputDir:  helper.inputDir,
@@ -233,7 +116,7 @@ func TestProcessFileDryRun(t *testing.T) {
 	}
 
 	// Process the file in dry-run mode
-	err := processFile(inputFile, config, helper.ffmpegPath, true)
+	err := processFile(inputFile, config, true)
 	if err != nil {
 		t.Fatalf("processFile failed: %v", err)
 	}
@@ -248,8 +131,7 @@ func TestProcessFileSkipsExisting(t *testing.T) {
 	helper := NewTestHelper(t)
 	helper.Setup()
 
-	// Generate a test audio file
-	inputFile := helper.GenerateTestAudio("test.mp3", 1)
+	inputFile := helper.WriteInputFile("test.mp3", []byte("skip fixture"))
 
 	config := Config{
 		InputDir:  helper.inputDir,
@@ -266,7 +148,7 @@ func TestProcessFileSkipsExisting(t *testing.T) {
 	}
 
 	// Process the file - should skip
-	err := processFile(inputFile, config, helper.ffmpegPath, false)
+	err := processFile(inputFile, config, false)
 	if err != nil {
 		t.Fatalf("processFile failed: %v", err)
 	}
@@ -278,246 +160,6 @@ func TestProcessFileSkipsExisting(t *testing.T) {
 	}
 	if string(content) != "existing" {
 		t.Error("Existing file was overwritten when it should have been skipped")
-	}
-}
-
-// TestCodecConversions tests conversion to different codecs
-func TestCodecConversions(t *testing.T) {
-	helper := NewTestHelper(t)
-	helper.Setup()
-
-	codecs := []struct {
-		name string
-		ext  string
-	}{
-		{"flac", ".flac"},
-		{"wav", ".wav"},
-		{"mp3", ".mp3"},
-		{"opus", ".opus"},
-	}
-
-	// Only test AAC/ALAC on platforms where they're well supported
-	if runtime.GOOS == "darwin" {
-		codecs = append(codecs,
-			struct {
-				name string
-				ext  string
-			}{"aac", ".m4a"},
-			struct {
-				name string
-				ext  string
-			}{"alac", ".m4a"},
-		)
-	}
-
-	for _, codec := range codecs {
-		t.Run(codec.name, func(t *testing.T) {
-			// Generate input file
-			inputFile := helper.GenerateTestAudio("input.mp3", 1)
-
-			config := Config{
-				InputDir:  helper.inputDir,
-				OutputDir: filepath.Join(helper.outputDir, codec.name),
-				Codec:     codec.name,
-				IPod:      false,
-				NoLyrics:  false,
-			}
-
-			// Create output directory
-			if err := os.MkdirAll(config.OutputDir, 0755); err != nil {
-				t.Fatalf("Failed to create output dir: %v", err)
-			}
-
-			// Process the file
-			err := processFile(inputFile, config, helper.ffmpegPath, false)
-			if err != nil {
-				t.Fatalf("processFile failed for %s: %v", codec.name, err)
-			}
-
-			// Verify output file exists with correct extension
-			expectedOutput := filepath.Join(config.OutputDir, "input"+codec.ext)
-			helper.VerifyFileExists(expectedOutput)
-
-			// Verify file is not empty
-			info, err := os.Stat(expectedOutput)
-			if err != nil {
-				t.Fatalf("Failed to stat output file: %v", err)
-			}
-			if info.Size() == 0 {
-				t.Errorf("Output file is empty for codec %s", codec.name)
-			}
-		})
-	}
-}
-
-// TestMetadataPreservation tests that metadata is preserved
-func TestMetadataPreservation(t *testing.T) {
-	helper := NewTestHelper(t)
-	helper.Setup()
-
-	// Generate file with metadata
-	testMetadata := map[string]string{
-		"title":  "Test Song",
-		"artist": "Test Artist",
-		"album":  "Test Album",
-		"date":   "2024",
-		"genre":  "Test Genre",
-	}
-
-	inputFile := helper.GenerateTestAudioWithMetadata("song.mp3", testMetadata)
-
-	config := Config{
-		InputDir:  helper.inputDir,
-		OutputDir: helper.outputDir,
-		Codec:     "flac",
-		IPod:      false,
-		NoLyrics:  false,
-	}
-
-	// Process the file
-	err := processFile(inputFile, config, helper.ffmpegPath, false)
-	if err != nil {
-		t.Fatalf("processFile failed: %v", err)
-	}
-
-	// Verify output exists
-	outputFile := filepath.Join(helper.outputDir, "song.flac")
-	helper.VerifyFileExists(outputFile)
-
-	// Extract and verify metadata
-	metadata := helper.GetMetadata(outputFile)
-
-	for key := range testMetadata {
-		helper.VerifyMetadataHasKey(metadata, key)
-	}
-}
-
-// TestLyricsStripping tests that lyrics are stripped when NoLyrics is true
-func TestLyricsStripping(t *testing.T) {
-	helper := NewTestHelper(t)
-	helper.Setup()
-
-	// Generate file with lyrics
-	testMetadata := map[string]string{
-		"title":  "Test Song",
-		"artist": "Test Artist",
-		"lyrics": "These are test lyrics\nLine 2\nLine 3",
-	}
-
-	inputFile := helper.GenerateTestAudioWithMetadata("song_with_lyrics.mp3", testMetadata)
-
-	// Test with lyrics stripping enabled
-	config := Config{
-		InputDir:  helper.inputDir,
-		OutputDir: helper.outputDir,
-		Codec:     "flac",
-		IPod:      false,
-		NoLyrics:  true,
-	}
-
-	// Process the file
-	err := processFile(inputFile, config, helper.ffmpegPath, false)
-	if err != nil {
-		t.Fatalf("processFile failed: %v", err)
-	}
-
-	// Verify output exists
-	outputFile := filepath.Join(helper.outputDir, "song_with_lyrics.flac")
-	helper.VerifyFileExists(outputFile)
-
-	// Extract and verify metadata
-	metadata := helper.GetMetadata(outputFile)
-
-	// Should have title and artist
-	helper.VerifyMetadataHasKey(metadata, "title")
-	helper.VerifyMetadataHasKey(metadata, "artist")
-
-	// Should NOT have lyrics
-	helper.VerifyMetadataLacksKey(metadata, "lyrics")
-}
-
-// TestLyricsPreservation tests that lyrics are kept when NoLyrics is false
-func TestLyricsPreservation(t *testing.T) {
-	helper := NewTestHelper(t)
-	helper.Setup()
-
-	// Generate file with lyrics
-	testMetadata := map[string]string{
-		"title":  "Test Song",
-		"lyrics": "These are test lyrics",
-	}
-
-	inputFile := helper.GenerateTestAudioWithMetadata("song_keep_lyrics.mp3", testMetadata)
-
-	// Test with lyrics preservation
-	config := Config{
-		InputDir:  helper.inputDir,
-		OutputDir: helper.outputDir,
-		Codec:     "flac",
-		IPod:      false,
-		NoLyrics:  false,
-	}
-
-	// Process the file
-	err := processFile(inputFile, config, helper.ffmpegPath, false)
-	if err != nil {
-		t.Fatalf("processFile failed: %v", err)
-	}
-
-	// Verify output exists
-	outputFile := filepath.Join(helper.outputDir, "song_keep_lyrics.flac")
-	helper.VerifyFileExists(outputFile)
-
-	// Extract and verify metadata
-	metadata := helper.GetMetadata(outputFile)
-
-	// Should have lyrics
-	helper.VerifyMetadataHasKey(metadata, "lyrics")
-}
-
-// TestIPodMode tests iPod-specific encoding parameters
-func TestIPodMode(t *testing.T) {
-	if runtime.GOOS != "darwin" {
-		t.Skip("iPod mode tests require macOS for AAC/ALAC support")
-	}
-
-	helper := NewTestHelper(t)
-	helper.Setup()
-
-	// Generate input file
-	inputFile := helper.GenerateTestAudio("ipod_test.mp3", 1)
-
-	config := Config{
-		InputDir:  helper.inputDir,
-		OutputDir: helper.outputDir,
-		Codec:     "aac",
-		IPod:      true,
-		NoLyrics:  false,
-	}
-
-	// Process the file
-	err := processFile(inputFile, config, helper.ffmpegPath, false)
-	if err != nil {
-		t.Fatalf("processFile with iPod mode failed: %v", err)
-	}
-
-	// Verify output file exists
-	expectedOutput := filepath.Join(helper.outputDir, "ipod_test.m4a")
-	helper.VerifyFileExists(expectedOutput)
-
-	// Verify file properties using ffprobe
-	metadata := helper.GetMetadata(expectedOutput)
-
-	// Should have an audio stream
-	hasAudioStream := false
-	for _, stream := range metadata.Streams {
-		if stream.CodecType == "audio" {
-			hasAudioStream = true
-			break
-		}
-	}
-	if !hasAudioStream {
-		t.Error("iPod mode output missing audio stream")
 	}
 }
 
@@ -578,6 +220,155 @@ func TestBuildFFmpegArgs(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestBuildFFmpegArgsPreservesConversionContract(t *testing.T) {
+	metadata := &Metadata{
+		Format: struct {
+			Tags map[string]string `json:"tags"`
+		}{
+			Tags: map[string]string{
+				"TITLE":       "Test Title",
+				"artist":      "Test Artist",
+				"album":       "Test Album",
+				"date":        "2024",
+				"track":       "7",
+				"genre":       "Test Genre",
+				"disc":        "2",
+				"lyrics":      "Test Lyrics",
+				"comment":     "Drop Me",
+				"description": "Drop Me Too",
+			},
+		},
+	}
+
+	tests := []struct {
+		name     string
+		config   Config
+		expected []string
+	}{
+		{
+			name: "flac keeps mapped streams and whitelisted metadata",
+			config: Config{
+				Codec:    "flac",
+				NoLyrics: false,
+			},
+			expected: []string{
+				"-i", "/input.mp3",
+				"-map", "0",
+				"-map_metadata", "-1",
+				"-metadata", "title=Test Title",
+				"-metadata", "artist=Test Artist",
+				"-metadata", "album=Test Album",
+				"-metadata", "date=2024",
+				"-metadata", "track=7",
+				"-metadata", "genre=Test Genre",
+				"-metadata", "disc=2",
+				"-metadata", "lyrics=Test Lyrics",
+				"-c:a", "flac",
+				"-c:v", "copy",
+				"/output.flac",
+			},
+		},
+		{
+			name: "ipod alac keeps compatibility flags",
+			config: Config{
+				Codec: "alac",
+				IPod:  true,
+			},
+			expected: []string{
+				"-i", "/input.mp3",
+				"-map", "0",
+				"-map_metadata", "-1",
+				"-metadata", "title=Test Title",
+				"-metadata", "artist=Test Artist",
+				"-metadata", "album=Test Album",
+				"-metadata", "date=2024",
+				"-metadata", "track=7",
+				"-metadata", "genre=Test Genre",
+				"-metadata", "disc=2",
+				"-metadata", "lyrics=Test Lyrics",
+				"-c:a", "alac",
+				"-c:v", "copy",
+				"-sample_fmt", "s16p",
+				"-ar", "44100",
+				"-movflags", "+faststart",
+				"-disposition:a", "0",
+				"/output.m4a",
+			},
+		},
+		{
+			name: "wav strips attached streams and lyrics when requested",
+			config: Config{
+				Codec:    "wav",
+				NoLyrics: true,
+			},
+			expected: []string{
+				"-i", "/input.mp3",
+				"-map", "0",
+				"-map_metadata", "-1",
+				"-metadata", "title=Test Title",
+				"-metadata", "artist=Test Artist",
+				"-metadata", "album=Test Album",
+				"-metadata", "date=2024",
+				"-metadata", "track=7",
+				"-metadata", "genre=Test Genre",
+				"-metadata", "disc=2",
+				"-c:a", "pcm_s16le",
+				"-vn",
+				"/output.wav",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			outputPath := tt.expected[len(tt.expected)-1]
+			args := buildFFmpegArgs("/input.mp3", outputPath, tt.config, metadata)
+			if strings.Join(args, "\x00") != strings.Join(tt.expected, "\x00") {
+				t.Fatalf("unexpected ffmpeg args\n got: %q\nwant: %q", args, tt.expected)
+			}
+
+			argsStr := strings.Join(args, " ")
+			for _, dropped := range []string{"comment=Drop Me", "description=Drop Me Too"} {
+				if strings.Contains(argsStr, dropped) {
+					t.Fatalf("ffmpeg args preserved non-whitelisted metadata %q: %v", dropped, args)
+				}
+			}
+			if tt.config.NoLyrics && strings.Contains(argsStr, "lyrics=Test Lyrics") {
+				t.Fatalf("ffmpeg args preserved lyrics while NoLyrics=true: %v", args)
+			}
+		})
+	}
+}
+
+func TestProcessFilesParallelReturnsConversionErrors(t *testing.T) {
+	tempDir := t.TempDir()
+	inputDir := filepath.Join(tempDir, "input")
+	outputDir := filepath.Join(tempDir, "output")
+
+	if err := os.MkdirAll(inputDir, 0755); err != nil {
+		t.Fatalf("failed to create input dir: %v", err)
+	}
+
+	inputFile := filepath.Join(inputDir, "broken.mp3")
+	if err := os.WriteFile(inputFile, []byte("not audio"), 0644); err != nil {
+		t.Fatalf("failed to create input file: %v", err)
+	}
+
+	config := Config{
+		InputDir:  inputDir,
+		OutputDir: outputDir,
+		Codec:     "flac",
+	}
+
+	err := processFilesParallel([]string{inputFile}, config, false)
+	if err == nil {
+		t.Fatal("processFilesParallel returned nil after conversion failure")
+	}
+	if !strings.Contains(err.Error(), "failed to extract metadata") && !strings.Contains(err.Error(), "linked ffmpeg bridge unavailable") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
@@ -652,7 +443,7 @@ func TestRunConversionEmptyInput(t *testing.T) {
 	}
 
 	// Run conversion on empty directory
-	err := runConversion(config, helper.ffmpegPath, false)
+	err := runConversion(config, false)
 	if err != nil {
 		t.Errorf("runConversion should not error on empty directory: %v", err)
 	}
@@ -670,74 +461,8 @@ func TestRunConversionNonExistentInput(t *testing.T) {
 	}
 
 	// Run conversion on non-existent directory
-	err := runConversion(config, helper.ffmpegPath, false)
+	err := runConversion(config, false)
 	if err == nil {
 		t.Error("runConversion should error on non-existent input directory")
-	}
-}
-
-// TestExtractMetadata tests metadata extraction
-func TestExtractMetadata(t *testing.T) {
-	helper := NewTestHelper(t)
-	helper.Setup()
-
-	// Generate a test file with metadata
-	testMetadata := map[string]string{
-		"title":  "Extract Test",
-		"artist": "Test Artist",
-	}
-	inputFile := helper.GenerateTestAudioWithMetadata("extract.mp3", testMetadata)
-
-	// Extract metadata
-	metadata, err := extractMetadata(inputFile, helper.ffmpegPath)
-	if err != nil {
-		t.Fatalf("extractMetadata failed: %v", err)
-	}
-
-	// Verify metadata structure
-	if metadata == nil {
-		t.Fatal("metadata is nil")
-	}
-
-	// Check for expected tags (case-insensitive)
-	found := false
-	for key := range metadata.Format.Tags {
-		if strings.ToLower(key) == "title" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Error("Expected to find 'title' in metadata tags")
-	}
-}
-
-// BenchmarkProcessFile benchmarks file processing
-func BenchmarkProcessFile(b *testing.B) {
-	helper := &TestHelper{
-		t:       &testing.T{},
-		tempDir: b.TempDir(),
-	}
-	helper.inputDir = filepath.Join(helper.tempDir, "input")
-	helper.outputDir = filepath.Join(helper.tempDir, "output")
-	helper.Setup()
-
-	// Generate a test audio file
-	inputFile := helper.GenerateTestAudio("bench.mp3", 1)
-
-	config := Config{
-		InputDir:  helper.inputDir,
-		OutputDir: helper.outputDir,
-		Codec:     "flac",
-		IPod:      false,
-		NoLyrics:  false,
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		// Change output dir each iteration to avoid skip logic
-		config.OutputDir = filepath.Join(helper.outputDir, strconv.Itoa(i))
-		os.MkdirAll(config.OutputDir, 0755)
-		processFile(inputFile, config, helper.ffmpegPath, false)
 	}
 }

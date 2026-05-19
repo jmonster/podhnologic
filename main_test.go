@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -306,7 +305,15 @@ func TestIsAudioFile(t *testing.T) {
 		{"song.aac", true},
 		{"song.opus", true},
 		{"song.m4a", true},
+		{"song.m4b", true},
 		{"song.ogg", true},
+		{"song.aiff", true},
+		{"song.ape", true},
+		{"song.caf", true},
+		{"song.dsf", true},
+		{"song.mka", true},
+		{"song.wma", true},
+		{"song.wv", true},
 		{"document.txt", false},
 		{"image.jpg", false},
 		{"video.mp4", false},
@@ -318,47 +325,6 @@ func TestIsAudioFile(t *testing.T) {
 			result := isAudioFile(tt.path)
 			if result != tt.expected {
 				t.Errorf("isAudioFile(%q) = %v, want %v", tt.path, result, tt.expected)
-			}
-		})
-	}
-}
-
-// TestGetFFprobePath tests ffprobe path derivation
-func TestGetFFprobePath(t *testing.T) {
-	tests := []struct {
-		name        string
-		ffmpegPath  string
-		expectEnds  string
-	}{
-		{
-			name:       "unix path",
-			ffmpegPath: "/usr/local/bin/ffmpeg",
-			expectEnds: "ffprobe",
-		},
-	}
-
-	// Platform-specific test
-	if strings.Contains(os.Getenv("OS"), "Windows") {
-		tests = append(tests, struct {
-			name        string
-			ffmpegPath  string
-			expectEnds  string
-		}{
-			name:       "windows path",
-			ffmpegPath: "C:\\Program Files\\ffmpeg\\ffmpeg.exe",
-			expectEnds: "ffprobe.exe",
-		})
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := getFFprobePath(tt.ffmpegPath)
-			if !strings.HasSuffix(result, tt.expectEnds) {
-				t.Errorf("getFFprobePath(%q) = %q, should end with %q", tt.ffmpegPath, result, tt.expectEnds)
-			}
-			// Verify it's in the same directory
-			if filepath.Dir(result) != filepath.Dir(tt.ffmpegPath) {
-				t.Errorf("getFFprobePath should be in same directory as ffmpeg")
 			}
 		})
 	}

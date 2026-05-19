@@ -16,16 +16,16 @@ import (
 var (
 	titleStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("86")). // Cyan
-			Background(lipgloss.Color("235")).
+			Foreground(lipgloss.Color(appleBlack)).
+			Background(lipgloss.Color(applePhosphorMid)).
 			Padding(0, 1)
 
 	selectedPathStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("86")). // Cyan
+				Foreground(lipgloss.Color(appleRainbowBlue)).
 				Bold(true)
 
 	helpStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("241"))
+			Foreground(lipgloss.Color(appleGrayDim))
 )
 
 type dirPickerModel struct {
@@ -158,11 +158,11 @@ func RunBubbleTeaDirectoryPicker(label, defaultPath string) (string, error) {
 	fp.CurrentDirectory = startPath
 
 	// Custom styling
-	fp.Styles.Cursor = lipgloss.NewStyle().Foreground(lipgloss.Color("212")) // Pink
-	fp.Styles.Symlink = lipgloss.NewStyle().Foreground(lipgloss.Color("36"))
-	fp.Styles.Directory = lipgloss.NewStyle().Foreground(lipgloss.Color("99")) // Purple
-	fp.Styles.File = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
-	fp.Styles.DisabledFile = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	fp.Styles.Cursor = lipgloss.NewStyle().Foreground(lipgloss.Color(appleRainbowYellow))
+	fp.Styles.Symlink = lipgloss.NewStyle().Foreground(lipgloss.Color(appleRainbowOrange))
+	fp.Styles.Directory = lipgloss.NewStyle().Foreground(lipgloss.Color(applePhosphorBright))
+	fp.Styles.File = lipgloss.NewStyle().Foreground(lipgloss.Color(appleGrayDim))
+	fp.Styles.DisabledFile = lipgloss.NewStyle().Foreground(lipgloss.Color(appleGrayDark))
 
 	m := dirPickerModel{
 		filepicker: fp,

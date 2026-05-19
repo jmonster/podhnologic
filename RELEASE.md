@@ -1,185 +1,76 @@
-# Release Instructions
+# Release
 
-## Prerequisites
+Tagged releases are built by `.github/workflows/release.yml`.
 
-### 1. Developer ID Certificate
+## Required Secrets
 
-You need a "Developer ID Application" certificate from Apple Developer Program.
+- `APPLE_DEVELOPER_ID_APPLICATION_CERTIFICATE_BASE64`
+- `APPLE_DEVELOPER_ID_APPLICATION_CERTIFICATE_PASSWORD`
+- `APPLE_CODESIGN_KEYCHAIN_PASSWORD`
+- `APPLE_CODESIGN_IDENTITY`
+- `APPLE_ID`
+- `APPLE_TEAM_ID`
+- `APPLE_APP_SPECIFIC_PASSWORD`
 
-Verify it's installed:
-```bash
+Instead of the Apple ID/app-specific password notarization secrets, CI can use:
+
+- `APP_STORE_CONNECT_API_KEY_KEY_ID`
+- `APP_STORE_CONNECT_API_KEY_ISSUER_ID`
+- `APP_STORE_CONNECT_API_KEY_P8_BASE64`
+
+## Tag A Release
+
+```sh
+git tag -a vX.Y.Z -m "Release vX.Y.Z"
+git push origin vX.Y.Z
+```
+
+The workflow builds linked FFmpeg binaries for Linux, Windows, and macOS. macOS binaries are signed with Developer ID, submitted to Apple notarization, assessed with `spctl`, then checksummed.
+
+The installer downloads the matching release asset and `.sha256` file before installing.
+
+## Local Signing Check
+
+```sh
 security find-identity -v -p codesigning | grep "Developer ID Application"
 ```
 
-### 2. Notarytool Credentials
+## Local macOS Signing
 
-Store your Apple ID credentials for notarization (one-time setup):
-```bash
-xcrun notarytool store-credentials "notarytool-profile" \
-  --apple-id "YOUR_APPLE_ID" \
-  --team-id "YOUR_TEAM_ID" \
-  --password "APP_SPECIFIC_PASSWORD"
+```sh
+./scripts/build-linked.sh darwin-arm64
+./scripts/sign-macos.sh build/podhnologic-darwin-arm64
 ```
 
-Create app-specific password at: https://appleid.apple.com/account/manage
+The signing script auto-detects `Developer ID Application: Wabi Sabi Ware LLC (88M7JPMLS6)` and signs with the hardened runtime using `com.wabisabiware.podhnologic`.
 
-### 3. Custom FFmpeg from Pixelbrite
+## Local macOS Notarization
 
-Build FFmpeg for each architecture from the pixelbrite repo:
-```bash
-cd /Volumes/thunderware/GitHub/pixelbrite/ffkit
+Using a stored notarytool profile:
 
-# Build for arm64 (Apple Silicon)
-./build-ffmpeg.sh darwin arm64
-
-# Build for amd64 (Intel)
-./build-ffmpeg.sh darwin amd64
+```sh
+PODHNOLOGIC_NOTARY_PROFILE=profile-name \
+  ./scripts/notarize-macos.sh build/podhnologic-darwin-arm64
 ```
 
-Binaries will be output to: `/Volumes/thunderware/GitHub/pixelbrite/dist/`
+Using an App Store Connect API key:
 
----
-
-## Build & Release
-
-### Step 1: Copy FFmpeg Binaries
-
-```bash
-# Create binaries directory
-mkdir -p binaries/{darwin-arm64,darwin-amd64}
-
-# Copy from pixelbrite dist
-cp /Volumes/thunderware/GitHub/pixelbrite/dist/ffmpeg-darwin-arm64/ffmpeg binaries/darwin-arm64/
-cp /Volumes/thunderware/GitHub/pixelbrite/dist/ffmpeg-darwin-arm64/ffprobe binaries/darwin-arm64/
-
-cp /Volumes/thunderware/GitHub/pixelbrite/dist/ffmpeg-darwin-amd64/ffmpeg binaries/darwin-amd64/
-cp /Volumes/thunderware/GitHub/pixelbrite/dist/ffmpeg-darwin-amd64/ffprobe binaries/darwin-amd64/
-
-chmod +x binaries/darwin-*/*
+```sh
+PODHNOLOGIC_ASC_API_KEY=<ASC_API_KEY_ID> \
+PODHNOLOGIC_ASC_API_ISSUER=<issuer-uuid> \
+PODHNOLOGIC_ASC_API_KEY_PATH=~/Desktop/AuthKey_<ASC_API_KEY_ID>.p8 \
+  ./scripts/notarize-macos.sh build/podhnologic-darwin-arm64
 ```
 
-### Step 2: Build Go Binaries
+## Notarization Logs
 
-```bash
-# Apple Silicon (arm64)
-GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w" -o build/podhnologic-darwin-arm64 .
-
-# Intel (amd64)
-GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w" -o build/podhnologic-darwin-amd64 .
+```sh
+xcrun notarytool log SUBMISSION_ID \
+  --apple-id "$APPLE_ID" \
+  --team-id "$APPLE_TEAM_ID" \
+  --password "$APPLE_APP_SPECIFIC_PASSWORD"
 ```
 
-### Step 3: Sign Binaries
+## Licensing Check
 
-```bash
-# Sign arm64
-codesign --force --options runtime \
-  --sign "Developer ID Application: YOUR_TEAM_NAME (YOUR_TEAM_ID)" \
-  build/podhnologic-darwin-arm64
-
-# Sign amd64
-codesign --force --options runtime \
-  --sign "Developer ID Application: YOUR_TEAM_NAME (YOUR_TEAM_ID)" \
-  build/podhnologic-darwin-amd64
-
-# Verify signatures
-codesign -dv build/podhnologic-darwin-arm64
-codesign -dv build/podhnologic-darwin-amd64
-```
-
-### Step 4: Notarize
-
-```bash
-# Create zips for notarization
-ditto -c -k --keepParent build/podhnologic-darwin-arm64 build/podhnologic-darwin-arm64.zip
-ditto -c -k --keepParent build/podhnologic-darwin-amd64 build/podhnologic-darwin-amd64.zip
-
-# Submit for notarization (uses stored credentials)
-xcrun notarytool submit build/podhnologic-darwin-arm64.zip \
-  --keychain-profile "notarytool-profile" --wait
-
-xcrun notarytool submit build/podhnologic-darwin-amd64.zip \
-  --keychain-profile "notarytool-profile" --wait
-
-# Staple notarization tickets to binaries
-xcrun stapler staple build/podhnologic-darwin-arm64
-xcrun stapler staple build/podhnologic-darwin-amd64
-```
-
-### Step 5: Verify
-
-```bash
-# Should show "accepted" and "source=Notarized Developer ID"
-spctl --assess --verbose build/podhnologic-darwin-arm64
-spctl --assess --verbose build/podhnologic-darwin-amd64
-```
-
-### Step 6: Create GitHub Release
-
-```bash
-# Tag the release
-git tag -a vX.Y.Z -m "Release vX.Y.Z"
-git push origin vX.Y.Z
-
-# Create release with signed binaries
-gh release create vX.Y.Z \
-  build/podhnologic-darwin-arm64 \
-  build/podhnologic-darwin-amd64 \
-  --title "vX.Y.Z" \
-  --notes "Signed and notarized macOS binaries"
-```
-
----
-
-## Linux Builds (unsigned)
-
-Linux doesn't require code signing. Cross-compile from macOS:
-
-```bash
-# Ensure Linux FFmpeg binaries are in binaries/linux-*/
-# Then build:
-GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o build/podhnologic-linux-amd64 .
-GOOS=linux GOARCH=arm64 go build -ldflags "-s -w" -o build/podhnologic-linux-arm64 .
-```
-
----
-
-## Windows Builds (unsigned)
-
-Windows doesn't require code signing. Cross-compile from macOS:
-
-```bash
-# Ensure Windows FFmpeg binaries are in binaries/windows-amd64/
-# Then build:
-GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o build/podhnologic-windows-amd64.exe .
-```
-
-Note: Users may see a SmartScreen warning ("Unknown publisher"). They can click "More info" → "Run anyway".
-
----
-
-## Upload All Binaries to Release
-
-```bash
-gh release upload vX.Y.Z \
-  build/podhnologic-linux-amd64 \
-  build/podhnologic-linux-arm64 \
-  build/podhnologic-windows-amd64.exe
-```
-
----
-
-## Troubleshooting
-
-### Notarization fails
-Check the log for details:
-```bash
-xcrun notarytool log SUBMISSION_ID --keychain-profile "notarytool-profile"
-```
-
-### "Developer ID Application" certificate not found
-1. Go to https://developer.apple.com/account/resources/certificates/list
-2. Create a new "Developer ID Application" certificate
-3. Download and double-click to install in Keychain
-
-### App-specific password issues
-Regenerate at https://appleid.apple.com/account/manage under "Sign-In and Security" > "App-Specific Passwords"
+Native release artifacts statically link GPL-enabled FFmpeg plus LAME and Opus. Before public release, make sure the project license and release assets satisfy the combined binary's license obligations.
