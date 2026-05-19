@@ -8,8 +8,8 @@ build/
 *.dll
 *.so
 *.dylib
-podhnologic
-podhnologic-*
+/podhnologic
+/podhnologic-*
 
 # Test binaries
 *.test
