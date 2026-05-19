@@ -40,7 +40,7 @@ deps:
 	@cd web && pnpm install --frozen-lockfile
 
 test:
-	@$(GOTEST) -v ./...
+	@$(GOTEST) -v -count=1 ./...
 
 linked-test: build
 	@case "$$(uname -s):$$(uname -m)" in \
@@ -56,7 +56,7 @@ linked-test: build
 	export PKG_CONFIG_PATH="$$prefix/lib/pkgconfig"; \
 	export CGO_CFLAGS="$$cflags -I$$prefix/include"; \
 	export CGO_LDFLAGS="$$ldflags -L$$prefix/lib -lpodhnologicffmpeg $$(pkg-config --static --libs libavfilter libavformat libavcodec libswresample libswscale libavutil)"; \
-	$(GOTEST) -v -tags 'linkedffmpeg_cgo linkedffmpeg_hidden' ./...
+	$(GOTEST) -v -count=1 -tags 'linkedffmpeg_cgo linkedffmpeg_hidden' ./...
 
 web-build:
 	@cd web && pnpm build
