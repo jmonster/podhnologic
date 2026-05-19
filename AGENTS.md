@@ -21,13 +21,10 @@ Developer ID Application: Wabi Sabi Ware LLC (88M7JPMLS6)
 com.wabisabiware.podhnologic
 ```
 
-- Notarize with the App Store Connect API key:
+- Notarize with the App Store Connect API key from the shell environment:
 
 ```sh
-PODHNOLOGIC_ASC_API_KEY=<ASC_API_KEY_ID> \
-PODHNOLOGIC_ASC_API_ISSUER=<ASC_API_ISSUER_ID> \
-PODHNOLOGIC_ASC_API_KEY_PATH=~/Desktop/AuthKey_<ASC_API_KEY_ID>.p8 \
-  ./scripts/notarize-macos.sh build/podhnologic-darwin-arm64
+./scripts/notarize-macos.sh build/podhnologic-darwin-arm64
 ```
 
 - Verify raw CLI binaries with `spctl --type install`, not `--type execute`:

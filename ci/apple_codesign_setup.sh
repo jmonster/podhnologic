@@ -2,8 +2,8 @@
 
 set -euo pipefail
 
-P12_PATH="${PB_APPLE_CODESIGN_P12_PATH:-$HOME/Desktop/wabi-sabi-key.p12}"
-KEYCHAIN_PATH="${PB_APPLE_CODESIGN_KEYCHAIN_PATH:-$HOME/Library/Keychains/pixelbrite-ci.keychain-db}"
+P12_PATH="${PB_APPLE_CODESIGN_P12_PATH:-}"
+KEYCHAIN_PATH="${PB_APPLE_CODESIGN_KEYCHAIN_PATH:-$HOME/Library/Keychains/podhnologic-ci.keychain-db}"
 KEYCHAIN_PASSWORD="${PB_APPLE_CODESIGN_KEYCHAIN_PASSWORD:-${PB_APPLE_CODESIGN_P12_PASSWORD:-}}"
 
 usage() {
@@ -12,8 +12,8 @@ Usage: ${0##*/} setup|status
 
 Environment:
   PB_APPLE_CODESIGN_P12_PASSWORD       Required for setup.
-  PB_APPLE_CODESIGN_P12_PATH           Default: ~/Desktop/wabi-sabi-key.p12
-  PB_APPLE_CODESIGN_KEYCHAIN_PATH      Default: ~/Library/Keychains/pixelbrite-ci.keychain-db
+  PB_APPLE_CODESIGN_P12_PATH           Required path to Developer ID .p12.
+  PB_APPLE_CODESIGN_KEYCHAIN_PATH      Default: ~/Library/Keychains/podhnologic-ci.keychain-db
   PB_APPLE_CODESIGN_KEYCHAIN_PASSWORD  Defaults to PB_APPLE_CODESIGN_P12_PASSWORD
 EOF
 }
@@ -52,6 +52,7 @@ status() {
 }
 
 setup() {
+	[[ -n "$P12_PATH" ]] || die "PB_APPLE_CODESIGN_P12_PATH is required"
 	[[ -f "$P12_PATH" ]] || die "missing p12: $P12_PATH"
 	[[ -n "${PB_APPLE_CODESIGN_P12_PASSWORD:-}" ]] || die "PB_APPLE_CODESIGN_P12_PASSWORD is required"
 	[[ -n "$KEYCHAIN_PASSWORD" ]] || die "keychain password is required"

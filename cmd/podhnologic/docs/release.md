@@ -56,10 +56,7 @@ PODHNOLOGIC_NOTARY_PROFILE=profile-name \
 Using an App Store Connect API key:
 
 ```sh
-PODHNOLOGIC_ASC_API_KEY=<ASC_API_KEY_ID> \
-PODHNOLOGIC_ASC_API_ISSUER=<issuer-uuid> \
-PODHNOLOGIC_ASC_API_KEY_PATH=~/Desktop/AuthKey_<ASC_API_KEY_ID>.p8 \
-  ./scripts/notarize-macos.sh build/podhnologic-darwin-arm64
+./scripts/notarize-macos.sh build/podhnologic-darwin-arm64
 ```
 
 ## Notarization Logs
