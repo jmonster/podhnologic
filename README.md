@@ -30,7 +30,7 @@ Prepare files for an iPod:
 podhnologic --input ~/Music --output ~/iPod --ipod
 ```
 
-Use ALAC for older iPods:
+Use Apple Lossless on iPod:
 
 ```sh
 podhnologic --input ~/Music --output ~/iPod --ipod --codec alac
@@ -46,10 +46,10 @@ podhnologic --input ~/Music --output ~/Converted --codec flac --dry-run
 
 - `--input <dir>`: source directory
 - `--output <dir>`: destination directory
-- `--codec <format>`: `aac`, `alac`, `flac`, `mp3`, `opus`, or `wav`
 - `--ipod`: use iPod settings; defaults to 256 kbps AAC when no codec is set
-- `--no-lyrics`: drop lyrics metadata
 - `--dry-run`: show planned conversions
+- `--codec <format>`: `aac`, `alac`, `flac`, `mp3`, `opus`, or `wav`
+- `--no-lyrics`: drop lyrics metadata
 - `--interactive`: force the terminal UI
 - `--version`: print the version
 
@@ -62,7 +62,7 @@ Settings save to `~/.podhnologic/config.json`.
 | AAC | 256 kbps |
 | ALAC | Lossless; with `--ipod`, 16-bit 44.1 kHz |
 | FLAC | Lossless |
-| MP3 | V0 VBR with LAME |
+| MP3 | High-quality variable bitrate |
 | Opus | 128 kbps with libopus |
 | WAV | 16-bit PCM |
 
