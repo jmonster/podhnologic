@@ -76,6 +76,6 @@ mkdir -p "$BUILD_DIR"
 	-trimpath \
 	-ldflags "-s -w -X main.Version=${VERSION}" \
 	-o "$BUILD_DIR/${BINARY_NAME}-${target}${ext}" \
-	"$ROOT_DIR"
+	"$ROOT_DIR/cmd/podhnologic"
 
 printf '%s\n' "$BUILD_DIR/${BINARY_NAME}-${target}${ext}"
