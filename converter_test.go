@@ -299,6 +299,29 @@ func TestBuildFFmpegArgsPreservesConversionContract(t *testing.T) {
 			},
 		},
 		{
+			name: "mp3 keeps attached artwork while using lame quality mode",
+			config: Config{
+				Codec: "mp3",
+			},
+			expected: []string{
+				"-i", "/input.mp3",
+				"-map", "0",
+				"-map_metadata", "-1",
+				"-metadata", "title=Test Title",
+				"-metadata", "artist=Test Artist",
+				"-metadata", "album=Test Album",
+				"-metadata", "date=2024",
+				"-metadata", "track=7",
+				"-metadata", "genre=Test Genre",
+				"-metadata", "disc=2",
+				"-metadata", "lyrics=Test Lyrics",
+				"-c:a", "libmp3lame",
+				"-q:a", "0",
+				"-c:v", "copy",
+				"/output.mp3",
+			},
+		},
+		{
 			name: "wav strips attached streams and lyrics when requested",
 			config: Config{
 				Codec:    "wav",

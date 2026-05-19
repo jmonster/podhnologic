@@ -254,7 +254,7 @@ func getCodecParamsSimple(config Config) []string {
 		params = []string{"-c:a", "flac", "-c:v", "copy"}
 
 	case "mp3":
-		params = []string{"-c:a", "libmp3lame", "-q:a", "0"}
+		params = []string{"-c:a", "libmp3lame", "-q:a", "0", "-c:v", "copy"}
 
 	case "opus":
 		params = []string{"-c:a", "libopus", "-b:a", "128k", "-vn"}
