@@ -124,6 +124,22 @@ hash_sha256() {
 	fi
 }
 
+write_ffmpeg_build_metadata() {
+	local source_dir="$1"
+	local prefix="$2"
+	shift 2
+
+	local metadata_dir="$prefix/share/podhnologic"
+	local license
+
+	license="$(awk -F'"' '/^#define FFMPEG_LICENSE / {print $2; exit}' "$source_dir/config.h")"
+	[[ -n "$license" ]] || die "failed to read FFmpeg license from $source_dir/config.h"
+
+	mkdir -p "$metadata_dir"
+	printf '%s\n' "$license" >"$metadata_dir/ffmpeg-license.txt"
+	printf '%s\n' "$@" >"$metadata_dir/ffmpeg-configure-args.txt"
+}
+
 verify_sha256() {
 	local file="$1"
 	local expected="$2"
@@ -441,7 +457,6 @@ build_ffmpeg() {
 		--pkg-config-flags=--static
 		--arch="$ffmpeg_arch"
 		--target-os="$ffmpeg_os"
-		--enable-gpl
 		--disable-debug
 		--disable-doc
 		--disable-network
@@ -496,6 +511,7 @@ build_ffmpeg() {
 	log "building ffmpeg"
 	make -j"$JOBS"
 	make install
+	write_ffmpeg_build_metadata "$source_dir" "$prefix" "${configure_args[@]}"
 	popd >/dev/null
 }
 

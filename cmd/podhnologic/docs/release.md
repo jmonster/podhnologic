@@ -73,4 +73,11 @@ xcrun notarytool log SUBMISSION_ID \
 
 ## Licensing Check
 
-Native release artifacts statically link GPL-enabled FFmpeg plus LAME and Opus. Before public release, make sure the project license and release assets satisfy the combined binary's license obligations.
+Before publishing release assets, confirm the FFmpeg build is still LGPL-configured:
+
+```sh
+rg -n --glob '!cache/**' --glob '!work/**' --glob '!dist/**' -- \
+  '--enable-gpl|--enable-nonfree' scripts/ffmpeg
+```
+
+Rebuilt FFmpeg config headers should report `FFMPEG_LICENSE "LGPL version 2.1 or later"`.

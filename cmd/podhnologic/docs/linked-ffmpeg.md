@@ -1,8 +1,6 @@
 # Linked FFmpeg
 
-podhnologic links FFmpeg into the native executable.
-
-The old model of downloading static FFmpeg binaries, embedding them with Go build tags, and extracting them to `~/.podhnologic/bin` has been removed.
+Native builds link the pinned FFmpeg toolchain into the podhnologic executable.
 
 ## Build Flow
 
@@ -12,12 +10,12 @@ The old model of downloading static FFmpeg binaries, embedding them with Go buil
 
 `scripts/build-linked.sh`:
 
-- builds pinned FFmpeg, LAME, and Opus sources under `scripts/ffmpeg/dist/<target>`
+- builds pinned FFmpeg, LAME, Opus, and zlib sources under `scripts/ffmpeg/dist/<target>`
 - archives the FFmpeg CLI bridge into `libpodhnologicffmpeg.a`
-- links that archive into the Go binary with `linkedffmpeg_cgo linkedffmpeg_hidden`
+- links that archive into the Go command with `linkedffmpeg_cgo linkedffmpeg_hidden`
 - writes the binary to `build/podhnologic-<target>`
 
-The app invokes FFmpeg and FFprobe through a hidden self-process bridge. That keeps FFmpeg's CLI behavior and argument semantics while avoiding any external binary.
+The command invokes FFmpeg and FFprobe through a hidden self-process bridge to preserve FFmpeg CLI argument behavior.
 
 ## Native Targets
 
@@ -32,6 +30,8 @@ The app invokes FFmpeg and FFprobe through a hidden self-process bridge. That ke
 
 Pinned versions and checksums live in `scripts/ffmpeg/versions.env`.
 
-## License
+## License Policy
 
-The linked native binary includes GPL-enabled FFmpeg components. Release builds need compatible project licensing and complete corresponding source access for FFmpeg, LAME, Opus, and the bridge code.
+Native release builds use FFmpeg's LGPL configuration. GPL or nonfree FFmpeg components require a project license and release-process decision first.
+
+Release assets that include linked FFmpeg must include third-party notices and source access for the exact FFmpeg, LAME, Opus, zlib, and bridge sources used to build the artifact.

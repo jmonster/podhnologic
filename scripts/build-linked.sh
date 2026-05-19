@@ -52,9 +52,21 @@ esac
 
 dist_root="${FFMPEG_DIST_ROOT:-$ROOT_DIR/scripts/ffmpeg/dist}"
 prefix="${FFMPEG_PREFIX:-$dist_root/$target}"
+license_file="$prefix/share/podhnologic/ffmpeg-license.txt"
+configure_args_file="$prefix/share/podhnologic/ffmpeg-configure-args.txt"
+rebuild_ffmpeg=0
+
 if [[ ! -f "$prefix/lib/libpodhnologicffmpeg.a" ]]; then
+	rebuild_ffmpeg=1
+elif [[ ! -f "$license_file" || "$(<"$license_file")" != "LGPL version 2.1 or later" ]]; then
+	rebuild_ffmpeg=1
+elif [[ ! -f "$configure_args_file" ]] || grep -Eq '^--enable-(gpl|nonfree)$' "$configure_args_file"; then
+	rebuild_ffmpeg=1
+fi
+
+if [[ "$rebuild_ffmpeg" -eq 1 ]]; then
 	if [[ -n "${FFMPEG_PREFIX:-}" ]]; then
-		printf 'missing linked ffmpeg archive at %s\n' "$prefix/lib/libpodhnologicffmpeg.a" >&2
+		printf 'linked ffmpeg prefix is missing current LGPL-only build metadata: %s\n' "$prefix" >&2
 		exit 1
 	fi
 	"$ROOT_DIR/scripts/ffmpeg/build-native.sh" --target "$target"

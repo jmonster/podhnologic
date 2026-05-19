@@ -51,7 +51,6 @@ ENV AUDIO_DECODERS aac,aac_latm,ac3,alac,ape,atrac1,atrac3,atrac3al,atrac3p,atra
 ENV AUDIO_ENCODERS aac,alac,flac,libmp3lame,opus,pcm_alaw,pcm_mulaw,pcm_s16be,pcm_s16le,pcm_s24be,pcm_s24le,pcm_s32be,pcm_s32le,pcm_f32be,pcm_f32le,pcm_u8
 ENV AUDIO_PARSERS aac,aac_latm,ac3,cook,dca,flac,mpegaudio,opus,tak,vorbis
 RUN sed -i 's/emmake make -j/emmake make -j2/g' /src/build.sh && bash -x /src/build.sh \
-      --enable-gpl \
       --disable-network \
       --disable-avdevice \
       --enable-small \
