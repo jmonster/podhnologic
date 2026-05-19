@@ -296,14 +296,11 @@ show_next_steps() {
     esac
     echo ""
 
-    printf "${GREEN}Features:${NC}\n"
-    printf "  - Interactive terminal UI with keyboard shortcuts\n"
-    printf "  - FFmpeg linked in - no installation needed\n"
-    printf "  - Multi-threaded conversion using all CPU cores\n"
-    printf "  - iPod optimized conversions\n"
+    printf "${GREEN}Example:${NC}\n"
+    printf "  ${YELLOW}podhnologic --input ~/Music --output ~/Converted --codec flac${NC}\n"
     echo ""
 
-    printf "${GREEN}Learn more:${NC}\n"
+    printf "${GREEN}Docs:${NC}\n"
     printf "  ${CYAN}https://github.com/${REPO}${NC}\n"
     echo ""
 }
