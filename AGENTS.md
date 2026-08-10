@@ -3,6 +3,17 @@
 ## macOS Release Signing
 
 - macOS release binaries are raw CLI executables, not `.app` bundles.
+- Before compiling a release, run `make release-preflight`. It must prove the
+  exact Developer ID identity can sign through the logged-in user's normal
+  keychain search and that the explicit owner-only App Store Connect `.p8` works
+  against Apple. Do not start a release build after either check fails.
+- Install the Developer ID certificate/private-key pair once in the normal login
+  keychain. Repository scripts must never create, delete, unlock, lock, import
+  into, write, ACL-edit, reconfigure, or replace a keychain or its search list.
+- App Store Connect authentication uses an `AuthKey_<key-id>.p8` outside the
+  repository with mode `0400` or `0600`. Pass its absolute path, key ID, and
+  issuer ID; never store or transport its bytes through base64, a Keychain
+  generic-password item, an environment variable, or a temporary decoded file.
 - Sign with Developer ID:
 
 ```sh

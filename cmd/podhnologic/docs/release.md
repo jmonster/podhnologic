@@ -1,80 +1,81 @@
 # Release
 
-Tagged releases are built by `.github/workflows/release.yml`.
+## Required Apple release inputs
 
-## Required Secrets
+Install the Developer ID certificate and matching private key once in the
+logged-in user's normal login keychain. The expected identity is:
 
-- `APPLE_DEVELOPER_ID_APPLICATION_CERTIFICATE_BASE64`
-- `APPLE_DEVELOPER_ID_APPLICATION_CERTIFICATE_PASSWORD`
-- `APPLE_CODESIGN_KEYCHAIN_PASSWORD`
-- `APPLE_CODESIGN_IDENTITY`
-- `APPLE_ID`
-- `APPLE_TEAM_ID`
-- `APPLE_APP_SPECIFIC_PASSWORD`
+```text
+Developer ID Application: Wabi Sabi Ware LLC (88M7JPMLS6)
+```
 
-Instead of the Apple ID/app-specific password notarization secrets, CI can use:
+Keep the App Store Connect API private key outside the repository as an
+owner-only file. Export only its identity and path:
 
-- `APP_STORE_CONNECT_API_KEY_KEY_ID`
-- `APP_STORE_CONNECT_API_KEY_ISSUER_ID`
-- `APP_STORE_CONNECT_API_KEY_P8_BASE64`
+```sh
+export APPSTORE_CONNECT_API_KEY_ID='YOUR_KEY_ID'
+export APPSTORE_CONNECT_API_ISSUER_ID='YOUR_ISSUER_UUID'
+export APPSTORE_CONNECT_API_KEY_PATH='/absolute/path/AuthKey_YOUR_KEY_ID.p8'
+```
 
-## Tag A Release
+The `.p8` file must be owned by the current user and have mode `0400` or `0600`.
+Do not put the private-key bytes in base64, a shell variable, a repository, a
+temporary decoded file, or a Keychain generic-password item. Release scripts do
+not create, unlock, import into, reconfigure, or edit ACLs on any keychain.
+
+## Preflight before building
+
+Run the full Apple preflight before spending time on a release build:
+
+```sh
+make release-preflight
+```
+
+This signs and verifies a disposable probe through the normal user keychain
+search and performs a read-only `notarytool history` request with the `.p8`. A
+missing identity or rejected API key is a hard stop.
+
+## Build, sign, and notarize
+
+```sh
+./scripts/build-linked.sh darwin-arm64
+./scripts/sign-macos.sh build/podhnologic-darwin-arm64
+./scripts/notarize-macos.sh build/podhnologic-darwin-arm64
+```
+
+The signing script uses the hardened runtime and identifier
+`com.wabisabiware.podhnologic`. The notarization script accepts only the explicit
+file-backed App Store Connect API key; it does not use a stored `notarytool`
+keychain profile or Apple ID password fallback.
+
+## Tag a release
 
 ```sh
 git tag -a vX.Y.Z -m "Release vX.Y.Z"
 git push origin vX.Y.Z
 ```
 
-The workflow builds linked FFmpeg binaries for Linux, Windows, and macOS. macOS binaries are signed with Developer ID, submitted to Apple notarization, assessed with `spctl`, then checksummed.
+The installer downloads the matching release asset and `.sha256` file before
+installing.
 
-The installer downloads the matching release asset and `.sha256` file before installing.
-
-## Local Signing Check
-
-```sh
-security find-identity -v -p codesigning | grep "Developer ID Application"
-```
-
-## Local macOS Signing
-
-```sh
-./scripts/build-linked.sh darwin-arm64
-./scripts/sign-macos.sh build/podhnologic-darwin-arm64
-```
-
-The signing script auto-detects `Developer ID Application: Wabi Sabi Ware LLC (88M7JPMLS6)` and signs with the hardened runtime using `com.wabisabiware.podhnologic`.
-
-## Local macOS Notarization
-
-Using a stored notarytool profile:
-
-```sh
-PODHNOLOGIC_NOTARY_PROFILE=profile-name \
-  ./scripts/notarize-macos.sh build/podhnologic-darwin-arm64
-```
-
-Using an App Store Connect API key:
-
-```sh
-./scripts/notarize-macos.sh build/podhnologic-darwin-arm64
-```
-
-## Notarization Logs
+## Notarization logs
 
 ```sh
 xcrun notarytool log SUBMISSION_ID \
-  --apple-id "$APPLE_ID" \
-  --team-id "$APPLE_TEAM_ID" \
-  --password "$APPLE_APP_SPECIFIC_PASSWORD"
+  --key "$APPSTORE_CONNECT_API_KEY_PATH" \
+  --key-id "$APPSTORE_CONNECT_API_KEY_ID" \
+  --issuer "$APPSTORE_CONNECT_API_ISSUER_ID"
 ```
 
-## Licensing Check
+## Licensing check
 
-Before publishing release assets, confirm the FFmpeg build is still LGPL-configured:
+Before publishing release assets, confirm the FFmpeg build is still
+LGPL-configured:
 
 ```sh
 rg -n --glob '!cache/**' --glob '!work/**' --glob '!dist/**' -- \
   '--enable-gpl|--enable-nonfree' scripts/ffmpeg
 ```
 
-Rebuilt FFmpeg config headers should report `FFMPEG_LICENSE "LGPL version 2.1 or later"`.
+Rebuilt FFmpeg config headers should report
+`FFMPEG_LICENSE "LGPL version 2.1 or later"`.

@@ -7,7 +7,7 @@ BUILD_DIR=build
 GOCMD=go
 GOTEST=$(GOCMD) test
 
-.PHONY: all build build-all build-darwin-amd64 build-darwin-arm64 build-linux-amd64 build-linux-arm64 build-windows-amd64 build-windows-arm64 clean deps help install linked-test run test web-build
+.PHONY: all build build-all build-darwin-amd64 build-darwin-arm64 build-linux-amd64 build-linux-arm64 build-windows-amd64 build-windows-arm64 clean deps help install linked-test release-preflight run test web-build
 
 all: test build
 
@@ -21,6 +21,9 @@ build-darwin-amd64:
 
 build-darwin-arm64:
 	@./scripts/build-linked.sh darwin-arm64
+
+release-preflight:
+	@./scripts/preflight-apple-release.sh
 
 build-linux-amd64:
 	@./scripts/build-linked.sh linux-amd64
@@ -77,6 +80,7 @@ help:
 	@echo "  make build-all          Build configured native targets"
 	@echo "  make test               Run Go tests"
 	@echo "  make linked-test        Run Go tests with linked FFmpeg tags"
+	@echo "  make release-preflight  Prove Apple signing and App Store Connect access"
 	@echo "  make web-build          Build the Astro web app"
 	@echo "  make clean              Remove build artifacts"
 	@echo "  make install            Install to /usr/local/bin"
