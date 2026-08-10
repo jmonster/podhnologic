@@ -39,6 +39,7 @@ go.work
 # IDE
 .vscode/
 .idea/
+.claude/settings.local.json
 *.swp
 *.swo
 *~
@@ -46,3 +47,6 @@ go.work
 # OS
 .DS_Store
 Thumbs.db
+
+# Local validation output
+.artifacts/
