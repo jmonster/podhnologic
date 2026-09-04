@@ -6,7 +6,7 @@ package main
 #include <stdint.h>
 #include <stdlib.h>
 
-extern int podhnologic_linked_ffmpeg_main(const char *tool, int argc, const char **argv, int stdout_fd, int stderr_fd);
+extern int podhnologic_linked_ffmpeg_main(const char *tool, int argc, const char **argv, uintptr_t stdout_handle, uintptr_t stderr_handle);
 */
 import "C"
 
@@ -72,8 +72,8 @@ func runLinkedFFmpegNative(ctx context.Context, req LinkedFFmpegRequest) (Linked
 		cTool,
 		C.int(len(cArgs)),
 		argPtr,
-		C.int(stdoutW.Fd()),
-		C.int(stderrW.Fd()),
+		C.uintptr_t(stdoutW.Fd()),
+		C.uintptr_t(stderrW.Fd()),
 	))
 
 	_ = stdoutW.Close()

@@ -12,9 +12,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const (
-	Version = "4.1.0"
-)
+// Version is a variable so release builds can inject it with -ldflags -X.
+var Version = "4.1.0"
 
 // Config represents the user's saved configuration
 type Config struct {
@@ -41,7 +40,7 @@ func main() {
 	flag.Parse()
 
 	if *versionFlag {
-		fmt.Printf("podhnologic v%s\n", Version)
+		fmt.Printf("podhnologic v%s\n", strings.TrimPrefix(Version, "v"))
 		os.Exit(0)
 	}
 
@@ -75,37 +74,99 @@ func main() {
 		if *outputFlag != "" {
 			config.OutputDir = expandPath(*outputFlag)
 		}
-		if *codecFlag != "" {
-			config.Codec = *codecFlag
-		}
-		if *ipodFlag {
-			config.IPod = true
-		}
-		if *noLyricsFlag {
-			config.NoLyrics = true
+		codecSet := false
+		ipodSet := false
+		noLyricsSet := false
+		flag.Visit(func(f *flag.Flag) {
+			switch f.Name {
+			case "codec":
+				codecSet = true
+			case "ipod":
+				ipodSet = true
+			case "no-lyrics":
+				noLyricsSet = true
+			}
+		})
+		var overrideErr error
+		config, overrideErr = applyFlagOverrides(config, *codecFlag, codecSet, *ipodFlag, ipodSet, *noLyricsFlag, noLyricsSet)
+		if overrideErr != nil {
+			log.Fatal(overrideErr)
 		}
 
 		// Validate required fields
 		if config.InputDir == "" || config.OutputDir == "" {
 			log.Fatal("--input and --output are required")
 		}
-		if config.Codec == "" && !config.IPod {
-			log.Fatal("--codec or --ipod is required")
-		}
 
 		// Save the config for future use
-		saveConfig(configDir, config)
+		if err := saveConfig(configDir, config); err != nil {
+			log.Printf("Warning: failed to save config: %v", err)
+		}
 	}
 
-	// Set default codec for iPod mode
-	if config.Codec == "" && config.IPod {
-		config.Codec = "aac"
-	}
+	// Keep the codec passed to conversion normalized in every mode, including
+	// configurations loaded for interactive use.
+	config.Codec = normalizeCodec(config.Codec)
 
 	// Run the conversion
 	if err := runConversion(config, *dryRunFlag); err != nil {
 		log.Fatalf("Conversion failed: %v", err)
 	}
+}
+
+func applyFlagOverrides(config Config, codec string, codecSet bool, ipod bool, ipodSet bool, noLyrics bool, noLyricsSet bool) (Config, error) {
+	if codecSet {
+		config.Codec = codec
+	}
+	if ipodSet {
+		config.IPod = ipod
+	}
+	if noLyricsSet {
+		config.NoLyrics = noLyrics
+	}
+
+	config.Codec = normalizeCodec(config.Codec)
+	if config.IPod && !codecSet && !isIPodCodec(config.Codec) {
+		config.Codec = "aac"
+	}
+	if config.Codec == "" && config.IPod {
+		config.Codec = "aac"
+	}
+	if err := validateConfig(config); err != nil {
+		return config, err
+	}
+	return config, nil
+}
+
+var supportedCodecs = map[string]struct{}{
+	"flac": {}, "alac": {}, "aac": {}, "wav": {}, "mp3": {}, "opus": {},
+}
+
+func normalizeCodec(codec string) string {
+	return strings.ToLower(strings.TrimSpace(codec))
+}
+
+func isIPodCodec(codec string) bool {
+	return codec == "aac" || codec == "alac"
+}
+
+// validateConfig checks codec values shared by command-line, terminal, and
+// conversion flows.
+func validateConfig(config Config) error {
+	codec := normalizeCodec(config.Codec)
+	if codec == "" {
+		if config.IPod {
+			return nil // iPod mode supplies the aac default in the caller.
+		}
+		return fmt.Errorf("a codec is required")
+	}
+	if _, ok := supportedCodecs[codec]; !ok {
+		return fmt.Errorf("unsupported codec %q (use flac, alac, aac, wav, mp3, or opus)", config.Codec)
+	}
+	if config.IPod && !isIPodCodec(codec) {
+		return fmt.Errorf("codec %q is not compatible with iPod mode (use aac or alac)", config.Codec)
+	}
+	return nil
 }
 
 func getConfigDir() (string, error) {

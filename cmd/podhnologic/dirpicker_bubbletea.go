@@ -34,6 +34,9 @@ type dirPickerModel struct {
 	err          error
 	label        string
 	quitting     bool
+	// done is used by the standalone wrapper. Embedded pickers leave it nil so
+	// the parent program keeps ownership of the input reader and screen.
+	done tea.Cmd
 }
 
 type clearErrorMsg struct{}
@@ -55,12 +58,12 @@ func (m dirPickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "q", "esc":
 			// Cancel without selecting - leave selectedPath empty
 			m.quitting = true
-			return m, tea.Quit
+			return m, m.done
 		case " ", "s":
 			// Space/s key selects the current directory without navigating
 			m.selectedPath = m.filepicker.CurrentDirectory
 			m.quitting = true
-			return m, tea.Quit
+			return m, m.done
 		}
 	case clearErrorMsg:
 		m.err = nil
@@ -79,7 +82,7 @@ func (m dirPickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// User selected a directory - capture it before filepicker navigates
 		m.selectedPath = m.filepicker.Path
 		m.quitting = true
-		return m, tea.Quit
+		return m, m.done
 	}
 
 	return m, cmd
@@ -119,6 +122,23 @@ func (m dirPickerModel) View() string {
 
 // RunBubbleTeaDirectoryPicker runs the Bubble Tea directory picker
 func RunBubbleTeaDirectoryPicker(label, defaultPath string) (string, error) {
+	m := newDirPickerModel(label, defaultPath)
+	m.done = tea.Quit
+
+	// Use AltScreen to match the main menu and avoid terminal corruption
+	tm, err := tea.NewProgram(m, tea.WithAltScreen()).Run()
+	if err != nil {
+		return "", err
+	}
+	mm := tm.(dirPickerModel)
+	if mm.selectedPath == "" {
+		return "", fmt.Errorf("no directory selected")
+	}
+
+	return mm.selectedPath, nil
+}
+
+func newDirPickerModel(label, defaultPath string) *dirPickerModel {
 	fp := filepicker.New()
 
 	// Configure to show directories only
@@ -164,21 +184,14 @@ func RunBubbleTeaDirectoryPicker(label, defaultPath string) (string, error) {
 	fp.Styles.File = lipgloss.NewStyle().Foreground(lipgloss.Color(appleGrayDim))
 	fp.Styles.DisabledFile = lipgloss.NewStyle().Foreground(lipgloss.Color(appleGrayDark))
 
-	m := dirPickerModel{
+	return &dirPickerModel{
 		filepicker: fp,
 		label:      label,
 	}
+}
 
-	// Use AltScreen to match the main menu and avoid terminal corruption
-	tm, err := tea.NewProgram(&m, tea.WithAltScreen()).Run()
-	if err != nil {
-		return "", err
-	}
-
-	mm := tm.(dirPickerModel)
-	if mm.selectedPath == "" {
-		return "", fmt.Errorf("no directory selected")
-	}
-
-	return mm.selectedPath, nil
+func updateDirPicker(m *dirPickerModel, msg tea.Msg) (*dirPickerModel, tea.Cmd) {
+	model, cmd := m.Update(msg)
+	value := model.(dirPickerModel)
+	return &value, cmd
 }

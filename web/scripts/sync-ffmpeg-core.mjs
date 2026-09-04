@@ -18,18 +18,6 @@ async function copyRequired(name) {
   await copyFile(sourceFile, join(target, name));
 }
 
-async function copyOptional(name) {
-  const sourceFile = join(source, name);
-
-  try {
-    await access(sourceFile);
-  } catch {
-    return;
-  }
-
-  await copyFile(sourceFile, join(target, name));
-}
-
 await mkdir(target, { recursive: true });
 
 await Promise.all([
@@ -41,6 +29,5 @@ await Promise.all([
 await Promise.all([
   copyRequired('ffmpeg-core.js'),
   copyRequired('ffmpeg-core.wasm'),
+  copyRequired('ffmpeg-core.worker.js'),
 ]);
-
-await copyOptional('ffmpeg-core.worker.js');

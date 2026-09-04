@@ -25,6 +25,7 @@ export interface ConvertedAudioFile {
 interface CoreResources {
   coreURL: string;
   wasmURL: string;
+  workerURL: string;
 }
 
 const OUTPUTS: Record<
@@ -50,7 +51,13 @@ export function createAudioConverter(config: AudioConverterConfig) {
   let supportCheck: Promise<void> | null = null;
 
   const load = async () => {
-    supportCheck ??= assertSupportedCore();
+    if (!globalThis.crossOriginIsolated) {
+      throw new Error('Audio conversion requires a page served with cross-origin isolation enabled.');
+    }
+    supportCheck ??= assertSupportedCore().catch((error) => {
+      supportCheck = null;
+      throw error;
+    });
     await supportCheck;
   };
 
@@ -62,17 +69,22 @@ export function createAudioConverter(config: AudioConverterConfig) {
     const outputSpec = OUTPUTS[options.format];
     const outputName = `${inputName}.${outputSpec.extension}`;
 
-    await ffmpeg.writeFile(inputName, await fetchFile(file));
-
     try {
+      await ffmpeg.writeFile(inputName, await fetchFile(file));
       const execArgs = [
         '-y',
+        '-threads',
+        '1',
         '-i',
         inputName,
         '-map',
         '0:a:0',
         '-c:a',
         outputSpec.codec,
+        '-threads',
+        '1',
+        '-filter_threads',
+        '1',
         '-ar',
         String(options.sampleRate),
         '-ac',
@@ -122,9 +134,14 @@ export function createAudioConverter(config: AudioConverterConfig) {
       config.onProgress?.(progress);
     });
 
-    coreResources ??= await resolveCoreResources(config.coreBaseUrl);
-    await ffmpeg.load(coreResources);
-    return ffmpeg;
+    try {
+      coreResources ??= await resolveCoreResources(config.coreBaseUrl);
+      await ffmpeg.load(coreResources);
+      return ffmpeg;
+    } catch (error) {
+      ffmpeg.terminate();
+      throw error;
+    }
   }
 
   async function assertSupportedCore() {
@@ -163,6 +180,7 @@ async function resolveCoreResources(coreBaseUrl: string): Promise<CoreResources>
   return {
     coreURL,
     wasmURL: await toBlobURL(`${base}/ffmpeg-core.wasm`, 'application/wasm'),
+    workerURL: await toBlobURL(`${base}/ffmpeg-core.worker.js`, 'text/javascript'),
   };
 }
 

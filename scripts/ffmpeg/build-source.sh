@@ -124,6 +124,31 @@ hash_sha256() {
 	fi
 }
 
+hash_text() {
+	if command -v sha256sum >/dev/null 2>&1; then
+		sha256sum | awk '{print $1}'
+	else
+		shasum -a 256 | awk '{print $1}'
+	fi
+}
+
+native_build_fingerprint() {
+	local target="$1" prefix="$2" cc="$3" ar="$4" ranlib="$5" strip="$6" pkg_config="$7"
+	local cflags="$8" cppflags="$9" ldflags="${10}" cross_prefix="${11}"
+	{
+		printf 'target=%s\n' "$target"
+		printf 'prefix=%s\n' "$prefix"
+		printf 'versions=%s\n' "$(hash_sha256 "$SCRIPT_DIR/versions.env")"
+		printf 'bridge=%s\n' "$(hash_sha256 "$SCRIPT_DIR/bridge/linked_ffmpeg_bridge.c")"
+		printf 'build-source=%s\n' "$(hash_sha256 "$SCRIPT_DIR/build-source.sh")"
+		printf 'build-native=%s\n' "$(hash_sha256 "$SCRIPT_DIR/build-native.sh")"
+		printf 'cc=%s\nar=%s\nranlib=%s\nstrip=%s\npkg-config=%s\n' "$cc" "$ar" "$ranlib" "$strip" "$pkg_config"
+		printf 'cflags=%s\ncppflags=%s\nldflags=%s\ncross-prefix=%s\n' "$cflags" "$cppflags" "$ldflags" "$cross_prefix"
+		printf 'FFMPEG_CC=%s\nFFMPEG_AR=%s\nFFMPEG_RANLIB=%s\nFFMPEG_STRIP=%s\nFFMPEG_PKG_CONFIG=%s\nFFMPEG_CROSS_PREFIX=%s\n' \
+			"${FFMPEG_CC-}" "${FFMPEG_AR-}" "${FFMPEG_RANLIB-}" "${FFMPEG_STRIP-}" "${FFMPEG_PKG_CONFIG-}" "${FFMPEG_CROSS_PREFIX-}"
+	} | hash_text
+}
+
 write_ffmpeg_build_metadata() {
 	local source_dir="$1"
 	local prefix="$2"
@@ -250,14 +275,16 @@ target_toolchain() {
 	fi
 	[[ -n "${PKG_CONFIG:-}" ]] || die "missing pkg-config for $target"
 
-	require_cmd "$CC"
-	require_cmd "$AR"
-	require_cmd "$RANLIB"
-	require_cmd "$STRIP"
-	if [[ "$target" == windows-* ]]; then
-		require_cmd "$OBJCOPY"
+	if [[ "${FFMPEG_FINGERPRINT_ONLY:-0}" != 1 ]]; then
+		require_cmd "$CC"
+		require_cmd "$AR"
+		require_cmd "$RANLIB"
+		require_cmd "$STRIP"
+		if [[ "$target" == windows-* ]]; then
+			require_cmd "$OBJCOPY"
+		fi
+		require_cmd "$PKG_CONFIG"
 	fi
-	require_cmd "$PKG_CONFIG"
 }
 
 target_cflags() {
@@ -461,7 +488,6 @@ build_ffmpeg() {
 		--disable-doc
 		--disable-network
 		--disable-autodetect
-		--disable-asm
 		--disable-avdevice
 		--disable-shared
 		--enable-static
@@ -650,7 +676,7 @@ build_target() {
 	autotools_host="$(target_autotools_host "$target")"
 	ffmpeg_arch="$(target_arch "$target")"
 	ffmpeg_os="$(target_os "$target")"
-	cross_prefix="$(target_cross_prefix "$target")"
+	cross_prefix="${FFMPEG_CROSS_PREFIX:-$(target_cross_prefix "$target")}"
 	cflags="$(target_cflags "$target")"
 	cppflags="-I$prefix/include"
 	ldflags="$(target_ldflags "$target") -L$prefix/lib"
@@ -679,9 +705,26 @@ build_target() {
 	build_opus "$target" "$opus_src" "$prefix" "$autotools_host" "$cflags" "$cppflags" "$ldflags"
 	build_ffmpeg "$target" "$ffmpeg_src" "$prefix" "$cflags" "$cppflags" "$ldflags" "$ffmpeg_arch" "$ffmpeg_os" "$cross_prefix"
 	build_link_bridge "$target" "$ffmpeg_src" "$prefix" "$cflags" "$cppflags"
+	printf '%s\n' "$(native_build_fingerprint "$target" "$prefix" "$CC" "$AR" "$RANLIB" "$STRIP" "$PKG_CONFIG" "$cflags" "$cppflags" "$ldflags" "$cross_prefix")" \
+		>"$prefix/share/podhnologic/native-build-fingerprint.txt"
 
 	log "built bundle at $prefix"
 }
+
+if [[ "${1:-}" == "--print-fingerprint" ]]; then
+	[[ "${2:-}" == "--target" && -n "${3:-}" && "${4:-}" == "--prefix" && -n "${5:-}" ]] || die "--print-fingerprint requires --target TARGET --prefix PREFIX"
+	target="$3"
+	prefix="$5"
+	ffmpeg_arch="$(target_arch "$target")"
+	ffmpeg_os="$(target_os "$target")"
+	cross_prefix="${FFMPEG_CROSS_PREFIX:-$(target_cross_prefix "$target")}";
+	cflags="$(target_cflags "$target")"
+	cppflags="-I$prefix/include"
+	ldflags="$(target_ldflags "$target") -L$prefix/lib"
+	FFMPEG_FINGERPRINT_ONLY=1 target_toolchain "$target"
+	native_build_fingerprint "$target" "$prefix" "$CC" "$AR" "$RANLIB" "$STRIP" "$PKG_CONFIG" "$cflags" "$cppflags" "$ldflags" "$cross_prefix"
+	exit 0
+fi
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in

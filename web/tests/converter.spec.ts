@@ -44,6 +44,16 @@ test('converts a wav file to every browser output format', async ({ page }) => {
       'download',
       `tone.${extension}`,
     );
+
+    const outputUrl = await page.getByRole('link', { name: 'Download' }).getAttribute('href');
+    if (!outputUrl) {
+      throw new Error('Converted output did not have a download URL.');
+    }
+    const outputBytes = await page.evaluate(async (url) => {
+      const response = await fetch(url);
+      return (await response.arrayBuffer()).byteLength;
+    }, outputUrl);
+    expect(outputBytes, `${format} output should contain audio data`).toBeGreaterThan(0);
   }
 
   monitor.expectClean();
@@ -77,6 +87,48 @@ test('converts multiple files without showing emscripten abort noise', async ({ 
   await expect(page.locator('#status')).toHaveText('Ready: 3 output files.', { timeout: 120_000 });
   await expect(page.getByRole('link', { name: 'Download' })).toHaveCount(3);
   await expect(page.locator('#log')).not.toContainText('Aborted()');
+
+  monitor.expectClean();
+});
+
+test('keeps successful downloads when one file in a batch fails', async ({ page }) => {
+  const monitor = monitorBrowserFailures(page);
+
+  await page.goto('/');
+  await page.locator('#files').setInputFiles([
+    {
+      name: 'first.wav',
+      mimeType: 'audio/wav',
+      buffer: makeWavFixture(),
+    },
+    {
+      name: 'invalid.wav',
+      mimeType: 'audio/wav',
+      buffer: Buffer.from('not a wav file'),
+    },
+    {
+      name: 'last.wav',
+      mimeType: 'audio/wav',
+      buffer: makeWavFixture(),
+    },
+  ]);
+  await page.locator('#format').selectOption('wav');
+
+  await page.getByRole('button', { name: 'Convert' }).click();
+
+  await expect(page.locator('#status')).toHaveText('Completed: 2 output files; 1 failed.', {
+    timeout: 120_000,
+  });
+  await expect(page.getByRole('link', { name: 'Download' })).toHaveCount(2);
+  await expect(page.getByRole('link', { name: 'Download' }).nth(0)).toHaveAttribute(
+    'download',
+    'first.wav',
+  );
+  await expect(page.getByRole('link', { name: 'Download' }).nth(1)).toHaveAttribute(
+    'download',
+    'last.wav',
+  );
+  await expect(page.locator('#results')).toContainText('Failed: invalid.wav');
 
   monitor.expectClean();
 });

@@ -3,6 +3,7 @@ set -e
 
 # Podhnologic Installer
 # Usage: curl -fsSL https://raw.githubusercontent.com/jmonster/podhnologic/main/install.sh | bash
+# Noninteractive upgrade: curl -fsSL https://raw.githubusercontent.com/jmonster/podhnologic/main/install.sh | bash -s -- --yes
 # Note: POSIX-compliant, works with sh, dash, bash, etc.
 
 # Colors
@@ -16,6 +17,26 @@ NC='\033[0m' # No Color
 # Configuration
 REPO="jmonster/podhnologic"
 BINARY_NAME="podhnologic"
+ASSUME_YES=false
+
+# Parse options before doing any work. This keeps noninteractive upgrades
+# explicit while preserving the normal interactive confirmation prompt.
+for arg in "$@"; do
+    case "$arg" in
+        -y|--yes)
+            ASSUME_YES=true
+            ;;
+        -h|--help)
+            printf "Usage: %s [--yes]\n" "$0"
+            printf "  -y, --yes  Update an existing installation without prompting (for example: curl ... | bash -s -- --yes)\n"
+            exit 0
+            ;;
+        *)
+            printf "Usage: %s [--yes]\n" "$0" >&2
+            exit 2
+            ;;
+    esac
+done
 
 # Set install directory based on OS (default: ~/.local/bin for Unix, no sudo required)
 case "$(uname -s)" in
@@ -259,8 +280,17 @@ check_existing_installation() {
         existing_path=$(command -v "$BINARY_NAME")
         printf "${YELLOW}Podhnologic is already installed at: ${existing_path}${NC}\n"
         echo ""
-        printf "Update to the latest version? (y/N) "
-        read -r REPLY
+        if [ "$ASSUME_YES" = true ]; then
+            REPLY=y
+        elif ( : </dev/tty ) 2>/dev/null && ( : >/dev/tty ) 2>/dev/null; then
+            printf "Update to the latest version? (y/N) " > /dev/tty
+            read -r REPLY < /dev/tty || REPLY=""
+            printf "\n" > /dev/tty
+        else
+            printf "${RED}Cannot confirm update: no controlling terminal is available.${NC}\n" >&2
+            printf "Re-run with --yes to update noninteractively.\n" >&2
+            exit 1
+        fi
         echo ""
 
         case "$REPLY" in

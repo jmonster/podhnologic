@@ -8,7 +8,7 @@ ARG FFMPEG_MT
 ARG FFMPEG_GIT_REF
 ENV INSTALL_DIR=/opt
 ENV FFMPEG_VERSION=$FFMPEG_GIT_REF
-ENV CFLAGS="-I$INSTALL_DIR/include $CFLAGS $EXTRA_CFLAGS"
+ENV CFLAGS="-I$INSTALL_DIR/include $CFLAGS $EXTRA_CFLAGS -pthread"
 ENV CXXFLAGS="$CFLAGS"
 ENV LDFLAGS="-L$INSTALL_DIR/lib $LDFLAGS $CFLAGS $EXTRA_LDFLAGS"
 ENV EM_PKG_CONFIG_PATH=$EM_PKG_CONFIG_PATH:$INSTALL_DIR/lib/pkgconfig:/emsdk/upstream/emscripten/system/lib/pkgconfig
@@ -69,9 +69,9 @@ RUN sed -i 's/emmake make -j/emmake make -j2/g' /src/build.sh && bash -x /src/bu
 
 FROM ffmpeg-builder AS ffmpeg-wasm-builder
 COPY src/bind /src/src/bind
-RUN sed -i 's#Module\\[\"_ffmpeg\"\\](args.length, stringsToPtr(args));#Module["ret"] = Module["_ffmpeg"](args.length, stringsToPtr(args));#' /src/src/bind/ffmpeg/bind.js && \
+RUN sed -i 's#Module\["_ffmpeg"\](args.length, stringsToPtr(args));#Module["ret"] = Module["_ffmpeg"](args.length, stringsToPtr(args));#' /src/src/bind/ffmpeg/bind.js && \
       cp -R /src/fftools /src/src/fftools8 && \
-      sed -i 's#int main(int argc, char \\*\\*argv)#EMSCRIPTEN_KEEPALIVE int ffmpeg(int argc, char **argv)#' /src/src/fftools8/ffmpeg.c && \
+      sed -i 's#int main(int argc, char \*\*argv)#EMSCRIPTEN_KEEPALIVE int ffmpeg(int argc, char **argv)#' /src/src/fftools8/ffmpeg.c && \
       for kind in css html; do \
         gzip -9 -c "/src/src/fftools8/resources/graph.$kind" > "/tmp/graph.$kind.gz"; \
         { \

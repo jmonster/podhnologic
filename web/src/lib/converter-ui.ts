@@ -55,6 +55,38 @@ const setEmptyResults = (message: string) => {
   resultsEl.replaceChildren(item);
 };
 
+const appendOutput = (output: { blob: Blob; name: string; mimeType: string }) => {
+  const url = URL.createObjectURL(output.blob);
+  activeUrls.push(url);
+
+  const item = document.createElement('li');
+  item.className = 'result';
+
+  const details = document.createElement('div');
+  const name = document.createElement('strong');
+  name.textContent = output.name;
+  const mime = document.createElement('span');
+  mime.textContent = output.mimeType;
+  details.append(name, mime);
+
+  const link = document.createElement('a');
+  link.className = 'button secondary';
+  link.href = url;
+  link.download = output.name;
+  link.textContent = 'Download';
+
+  item.append(details, link);
+  resultsEl.appendChild(item);
+};
+
+const appendFailure = (file: File, error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error || 'Conversion failed.');
+  const item = document.createElement('li');
+  item.className = 'status';
+  item.textContent = `Failed: ${file.name} — ${message}`;
+  resultsEl.appendChild(item);
+};
+
 const appendLog = (message: string) => {
   if (message.includes('Aborted()')) {
     return;
@@ -114,36 +146,28 @@ form.addEventListener('submit', async (event) => {
     setStatus(`Loading core from ${coreBaseUrl}...`);
     await target.load();
 
-    const converted = [];
+    let convertedCount = 0;
+    let failedCount = 0;
     for (const [index, file] of files.entries()) {
       setStatus(`Converting ${index + 1} of ${files.length}: ${file.name}`);
-      converted.push(await target.convert(file, options));
+      try {
+        const output = await target.convert(file, options);
+        appendOutput(output);
+        convertedCount += 1;
+      } catch (error) {
+        failedCount += 1;
+        appendFailure(file, error);
+      }
+
+      progressEl.value = (index + 1) / files.length;
     }
 
-    setStatus(`Ready: ${converted.length} output file${converted.length === 1 ? '' : 's'}.`);
-
-    for (const output of converted) {
-      const url = URL.createObjectURL(output.blob);
-      activeUrls.push(url);
-
-      const item = document.createElement('li');
-      item.className = 'result';
-
-      const details = document.createElement('div');
-      const name = document.createElement('strong');
-      name.textContent = output.name;
-      const mime = document.createElement('span');
-      mime.textContent = output.mimeType;
-      details.append(name, mime);
-
-      const link = document.createElement('a');
-      link.className = 'button secondary';
-      link.href = url;
-      link.download = output.name;
-      link.textContent = 'Download';
-
-      item.append(details, link);
-      resultsEl.appendChild(item);
+    if (failedCount === 0) {
+      setStatus(`Ready: ${convertedCount} output file${convertedCount === 1 ? '' : 's'}.`);
+    } else {
+      setStatus(
+        `Completed: ${convertedCount} output file${convertedCount === 1 ? '' : 's'}; ${failedCount} failed.`,
+      );
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error || 'Conversion failed.');

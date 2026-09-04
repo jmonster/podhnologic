@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -46,6 +45,7 @@ Inputs:
 Outputs:
   $OUT_DIR/ffmpeg-core.js
   $OUT_DIR/ffmpeg-core.wasm
+  $OUT_DIR/ffmpeg-core.worker.js
 EOF
 }
 
@@ -88,8 +88,8 @@ if [[ "$RUNTIME" == "podman" ]]; then
 		--tag "$IMAGE_TAG" \
 		--build-arg EXTRA_CFLAGS="$EXTRA_CFLAGS" \
 		--build-arg EXTRA_LDFLAGS="$EXTRA_LDFLAGS" \
-		--build-arg FFMPEG_ST=1 \
-		--build-arg FFMPEG_MT= \
+		--build-arg FFMPEG_ST= \
+		--build-arg FFMPEG_MT=1 \
 		--build-arg FFMPEG_GIT_REF="$FFMPEG_GIT_REF" \
 		--build-arg LAME_TARBALL_URL="$LAME_TARBALL_URL" \
 		--build-arg LAME_TARBALL_SHA256="$LAME_TARBALL_SHA256" \
@@ -105,8 +105,8 @@ else
 	"$RUNTIME" buildx build \
 		--build-arg EXTRA_CFLAGS="$EXTRA_CFLAGS" \
 		--build-arg EXTRA_LDFLAGS="$EXTRA_LDFLAGS" \
-		--build-arg FFMPEG_ST=1 \
-		--build-arg FFMPEG_MT= \
+		--build-arg FFMPEG_ST= \
+		--build-arg FFMPEG_MT=1 \
 		--build-arg FFMPEG_GIT_REF="$FFMPEG_GIT_REF" \
 		--build-arg LAME_TARBALL_URL="$LAME_TARBALL_URL" \
 		--build-arg LAME_TARBALL_SHA256="$LAME_TARBALL_SHA256" \
@@ -127,13 +127,12 @@ core_dir="$(dirname "$core_js")"
 core_wasm="$core_dir/ffmpeg-core.wasm"
 
 [[ -f "$core_wasm" ]] || die "no ffmpeg-core.wasm found next to $core_js"
+[[ -f "$core_dir/ffmpeg-core.worker.js" ]] || die "threaded core worker is missing next to $core_js"
 
 rm -f "$OUT_DIR/ffmpeg-core.js" "$OUT_DIR/ffmpeg-core.wasm" "$OUT_DIR/ffmpeg-core.worker.js"
 cp "$core_js" "$OUT_DIR/ffmpeg-core.js"
 cp "$core_wasm" "$OUT_DIR/ffmpeg-core.wasm"
 
-if [[ -f "$core_dir/ffmpeg-core.worker.js" ]]; then
-	cp "$core_dir/ffmpeg-core.worker.js" "$OUT_DIR/ffmpeg-core.worker.js"
-fi
+cp "$core_dir/ffmpeg-core.worker.js" "$OUT_DIR/ffmpeg-core.worker.js"
 
 log "wrote browser core to $OUT_DIR"

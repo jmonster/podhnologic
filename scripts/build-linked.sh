@@ -54,13 +54,25 @@ dist_root="${FFMPEG_DIST_ROOT:-$ROOT_DIR/scripts/ffmpeg/dist}"
 prefix="${FFMPEG_PREFIX:-$dist_root/$target}"
 license_file="$prefix/share/podhnologic/ffmpeg-license.txt"
 configure_args_file="$prefix/share/podhnologic/ffmpeg-configure-args.txt"
+native_fingerprint_file="$prefix/share/podhnologic/native-build-fingerprint.txt"
 rebuild_ffmpeg=0
 
+hash_sha256() {
+	if command -v sha256sum >/dev/null 2>&1; then
+		sha256sum "$1" | awk '{print $1}'
+	else
+		shasum -a 256 "$1" | awk '{print $1}'
+	fi
+}
+
+expected_native_fingerprint="$("$ROOT_DIR/scripts/ffmpeg/build-source.sh" --print-fingerprint --target "$target" --prefix "$prefix")"
 if [[ ! -f "$prefix/lib/libpodhnologicffmpeg.a" ]]; then
 	rebuild_ffmpeg=1
 elif [[ ! -f "$license_file" || "$(<"$license_file")" != "LGPL version 2.1 or later" ]]; then
 	rebuild_ffmpeg=1
 elif [[ ! -f "$configure_args_file" ]] || grep -Eq '^--enable-(gpl|nonfree)$' "$configure_args_file"; then
+	rebuild_ffmpeg=1
+elif [[ ! -f "$native_fingerprint_file" || "$(<"$native_fingerprint_file")" != "$expected_native_fingerprint" ]]; then
 	rebuild_ffmpeg=1
 fi
 
@@ -82,12 +94,25 @@ export GOOS="$goos"
 export GOARCH="$goarch"
 
 mkdir -p "$BUILD_DIR"
-"$GO_BIN" build \
-	-a \
+archive_fingerprint_file="$BUILD_DIR/.${BINARY_NAME}-${target}.native-archive.sha256"
+archive_fingerprint="$(
+	find "$prefix/lib" -type f -name '*.a' -print |
+	sort |
+	while IFS= read -r archive; do
+		printf '%s=%s\n' "${archive#"$prefix"/}" "$(hash_sha256 "$archive")"
+	done |
+	if command -v sha256sum >/dev/null 2>&1; then sha256sum | awk '{print $1}'; else shasum -a 256 | awk '{print $1}'; fi
+)"
+go_build_args=(build)
+if [[ ! -f "$archive_fingerprint_file" || "$(<"$archive_fingerprint_file")" != "$archive_fingerprint" ]]; then
+	go_build_args+=(-a)
+fi
+"$GO_BIN" "${go_build_args[@]}" \
 	-tags "linkedffmpeg_cgo linkedffmpeg_hidden" \
 	-trimpath \
 	-ldflags "-s -w -X main.Version=${VERSION}" \
 	-o "$BUILD_DIR/${BINARY_NAME}-${target}${ext}" \
 	"$ROOT_DIR/cmd/podhnologic"
+printf '%s\n' "$archive_fingerprint" >"$archive_fingerprint_file"
 
 printf '%s\n' "$BUILD_DIR/${BINARY_NAME}-${target}${ext}"

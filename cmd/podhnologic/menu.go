@@ -6,7 +6,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/manifoldco/promptui"
 	"github.com/muesli/termenv"
 )
 
@@ -28,6 +27,9 @@ type menuModel struct {
 	shouldStart    bool
 	errorMessage   string
 	successMessage string
+	childAction    string
+	dirPicker      *dirPickerModel
+	codecPicker    *codecPickerModel
 }
 
 var (
@@ -205,6 +207,9 @@ func (m menuModel) Init() tea.Cmd {
 }
 
 func (m menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.childAction != "" {
+		return m.updateChild(msg)
+	}
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		// Clear messages on any key press
@@ -267,31 +272,19 @@ func (m menuModel) handleAction() (tea.Model, tea.Cmd) {
 
 	switch action {
 	case "input":
-		dir, err := RunBubbleTeaDirectoryPicker("📥 Select Input Directory (audio files to convert)", m.config.InputDir)
-		if err == nil && dir != "" {
-			m.config.InputDir = dir
-			saveConfig(m.configDir, *m.config)
-		}
-		// Force a full redraw after returning from sub-program
-		return m, tea.ClearScreen
+		m.childAction = action
+		m.dirPicker = newDirPickerModel("📥 Select Input Directory (audio files to convert)", m.config.InputDir)
+		return m, m.dirPicker.Init()
 
 	case "output":
-		dir, err := RunBubbleTeaDirectoryPicker("📤 Select Output Directory (converted files)", m.config.OutputDir)
-		if err == nil && dir != "" {
-			m.config.OutputDir = dir
-			saveConfig(m.configDir, *m.config)
-		}
-		// Force a full redraw after returning from sub-program
-		return m, tea.ClearScreen
+		m.childAction = action
+		m.dirPicker = newDirPickerModel("📤 Select Output Directory (converted files)", m.config.OutputDir)
+		return m, m.dirPicker.Init()
 
 	case "codec":
-		codec, err := selectCodec(m.config.Codec)
-		if err == nil && codec != "" {
-			m.config.Codec = codec
-			saveConfig(m.configDir, *m.config)
-		}
-		// Force a full redraw after returning from sub-program
-		return m, tea.ClearScreen
+		m.childAction = action
+		m.codecPicker = newCodecPicker(m.config.Codec)
+		return m, m.codecPicker.Init()
 
 	case "ipod":
 		m.config.IPod = !m.config.IPod
@@ -308,6 +301,100 @@ func (m menuModel) handleAction() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m menuModel) updateChild(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	switch m.childAction {
+	case "input", "output":
+		m.dirPicker, cmd = updateDirPicker(m.dirPicker, msg)
+		if m.dirPicker.quitting {
+			if m.dirPicker.selectedPath != "" {
+				if m.childAction == "input" {
+					m.config.InputDir = m.dirPicker.selectedPath
+				} else {
+					m.config.OutputDir = m.dirPicker.selectedPath
+				}
+				saveConfig(m.configDir, *m.config)
+			}
+			m.childAction, m.dirPicker = "", nil
+		}
+	case "codec":
+		m.codecPicker, cmd = updateCodecPicker(m.codecPicker, msg)
+		if m.codecPicker.quitting {
+			if m.codecPicker.selected != "" {
+				m.config.Codec = m.codecPicker.selected
+				saveConfig(m.configDir, *m.config)
+			}
+			m.childAction, m.codecPicker = "", nil
+		}
+	}
+	return m, cmd
+}
+
+type codecPickerModel struct {
+	codecs   []string
+	cursor   int
+	selected string
+	quitting bool
+}
+
+func newCodecPicker(current string) *codecPickerModel {
+	items := []string{"flac", "alac", "aac", "wav", "mp3", "opus"}
+	cursor := 0
+	for i, codec := range items {
+		if codec == current {
+			cursor = i
+			break
+		}
+	}
+	return &codecPickerModel{codecs: items, cursor: cursor}
+}
+
+func (m codecPickerModel) Init() tea.Cmd { return nil }
+
+func (m codecPickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	key, ok := msg.(tea.KeyMsg)
+	if !ok {
+		return m, nil
+	}
+	switch key.String() {
+	case "ctrl+c", "q", "esc":
+		m.quitting = true
+	case "up", "k":
+		if m.cursor > 0 {
+			m.cursor--
+		}
+	case "down", "j":
+		if m.cursor < len(m.codecs)-1 {
+			m.cursor++
+		}
+	case "enter", " ":
+		m.selected, m.quitting = m.codecs[m.cursor], true
+	}
+	return m, nil
+}
+
+func (m codecPickerModel) View() string {
+	var b strings.Builder
+	b.WriteString(titleStyle.Render("Select Target Codec"))
+	b.WriteString("\n\n")
+	for i, codec := range m.codecs {
+		if i == m.cursor {
+			b.WriteString(selectedItemStyle.Render("▶ " + codec))
+		} else {
+			b.WriteString("  " + codec)
+		}
+		b.WriteString("\n")
+	}
+	b.WriteString("\n" + helpStyle.Render("↑↓ navigate • Enter select • Esc cancel"))
+	return b.String()
+}
+
+func updateCodecPicker(m *codecPickerModel, msg tea.Msg) (*codecPickerModel, tea.Cmd) {
+	model, cmd := m.Update(msg)
+	value := model.(codecPickerModel)
+	return &value, cmd
+}
+
 func (m menuModel) startConversion() (tea.Model, tea.Cmd) {
 	// Validate configuration
 	if m.config.InputDir == "" || m.config.OutputDir == "" {
@@ -318,15 +405,26 @@ func (m menuModel) startConversion() (tea.Model, tea.Cmd) {
 		m.errorMessage = "⚠ Please set a codec or enable iPod mode"
 		return m, nil
 	}
+	if err := validateConfig(*m.config); err != nil {
+		m.errorMessage = "⚠ " + err.Error()
+		return m, nil
+	}
 
 	m.shouldStart = true
 	return m, tea.Quit
 }
 
 func (m menuModel) View() string {
-	// Initialize styles based on terminal background
+	// Child views reuse the menu's terminal-aware styles.
 	initMenuStyles()
-
+	if m.childAction != "" {
+		if m.dirPicker != nil {
+			return m.dirPicker.View()
+		}
+		if m.codecPicker != nil {
+			return m.codecPicker.View()
+		}
+	}
 	if m.quitting {
 		return ""
 	}
@@ -428,32 +526,4 @@ func renderBanner() string {
 		colorPhosphorDim, colorReset, colorPhosphorMid, colorReset))
 
 	return b.String()
-}
-
-func selectCodec(current string) (string, error) {
-	codecs := []string{"flac", "alac", "aac", "wav", "mp3", "opus"}
-
-	// Find current index
-	currentIndex := 0
-	for i, codec := range codecs {
-		if codec == current {
-			currentIndex = i
-			break
-		}
-	}
-
-	prompt := promptui.Select{
-		Label: "Select Target Codec",
-		Items: codecs,
-		Templates: &promptui.SelectTemplates{
-			Active:   ansiHex(appleRainbowYellow) + "▶ {{ . }}" + colorReset,
-			Inactive: "  {{ . }}",
-			Selected: ansiHex(applePhosphorBright) + "✓ {{ . }}" + colorReset,
-		},
-		CursorPos: currentIndex,
-		Size:      6,
-	}
-
-	_, result, err := prompt.Run()
-	return result, err
 }

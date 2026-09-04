@@ -7,6 +7,60 @@ import (
 	"testing"
 )
 
+func TestValidateConfig(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  Config
+		wantErr bool
+	}{
+		{name: "supported codec", config: Config{Codec: "flac"}},
+		{name: "all supported codecs", config: Config{Codec: "aac"}},
+		{name: "unsupported codec", config: Config{Codec: "vorbis"}, wantErr: true},
+		{name: "iPod aac", config: Config{Codec: "aac", IPod: true}},
+		{name: "iPod alac", config: Config{Codec: "alac", IPod: true}},
+		{name: "iPod flac", config: Config{Codec: "flac", IPod: true}, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateConfig(tt.config)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("validateConfig(%+v) error = %v, wantErr %v", tt.config, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateConfigNormalizesCodec(t *testing.T) {
+	if err := validateConfig(Config{Codec: " ALAC "}); err != nil {
+		t.Fatalf("validateConfig should accept surrounding whitespace and case: %v", err)
+	}
+}
+
+func TestApplyFlagOverridesExplicitBooleanValues(t *testing.T) {
+	config, err := applyFlagOverrides(Config{Codec: "aac", IPod: true, NoLyrics: true}, "", false, false, true, false, true)
+	if err != nil {
+		t.Fatalf("applyFlagOverrides returned error: %v", err)
+	}
+	if config.IPod || config.NoLyrics {
+		t.Fatalf("explicit false flags did not override saved values: %+v", config)
+	}
+}
+
+func TestApplyFlagOverridesEnablingIPodReplacesRememberedIncompatibleCodec(t *testing.T) {
+	config, err := applyFlagOverrides(Config{Codec: "flac"}, "", false, true, true, false, false)
+	if err != nil {
+		t.Fatalf("applyFlagOverrides returned error: %v", err)
+	}
+	if config.Codec != "aac" {
+		t.Fatalf("codec = %q, want aac", config.Codec)
+	}
+
+	if _, err := applyFlagOverrides(Config{Codec: "flac"}, "flac", true, true, true, false, false); err == nil {
+		t.Fatal("explicit incompatible codec should be rejected in iPod mode")
+	}
+}
+
 // TestExpandPath tests the path expansion functionality
 func TestExpandPath(t *testing.T) {
 	homeDir, err := os.UserHomeDir()
