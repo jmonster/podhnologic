@@ -13,7 +13,7 @@ import (
 )
 
 // Version is a variable so release builds can inject it with -ldflags -X.
-var Version = "4.1.0"
+var Version = "4.2.0"
 
 // Config represents the user's saved configuration
 type Config struct {
