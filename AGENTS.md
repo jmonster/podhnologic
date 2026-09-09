@@ -1,5 +1,6 @@
 # Podhnologic
 
+- `web/` is a retained, unhosted experiment. Routine CLI work and FFmpeg upgrades must not update, rebuild, or deploy it unless the operator explicitly requests browser work.
 - macOS release artifacts are raw CLI executables, not application bundles.
 - Ordinary implementation and tests do not require Apple release credentials.
 - For an explicitly requested macOS release, follow `cmd/podhnologic/docs/release.md` and start with `make release-preflight`.

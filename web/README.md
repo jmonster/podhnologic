@@ -1,11 +1,16 @@
 # Web
 
-Experimental Astro workspace for local audio conversion UI work.
+Retained Astro experiment for local audio conversion. It is not hosted and is
+outside routine CLI builds, releases, and dependency upgrades. Update or rebuild
+it only when browser work is explicitly requested.
 
-The browser core requires threads for FFmpeg 8's audio pipeline. From the
+The browser core requires threads for FFmpeg's audio pipeline. From the
 repository root, build it with `./scripts/ffmpeg/build-browser-core.sh` before
-starting the web workspace. This requires Docker or Podman and produces the
+starting the web workspace. Set `FFMPEG_WASM_REF` to an official ffmpeg.wasm
+checkout. This requires Apple Container, Docker, or Podman and produces the
 JavaScript, WebAssembly, and pthread worker files copied by `pnpm sync-core`.
+The FFmpeg source archive and checksum are shared with the native build in
+`scripts/ffmpeg/versions.env`. Browser AAC uses the NMR coder with PNS disabled.
 
 ## Run
 

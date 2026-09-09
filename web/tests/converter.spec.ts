@@ -18,6 +18,22 @@ test('converts a wav file without 404s', async ({ page }) => {
   await expect(page.locator('#status')).toHaveText('Ready: 1 output file.', { timeout: 120_000 });
   await expect(page.getByRole('link', { name: 'Download' })).toHaveAttribute('download', 'tone.m4a');
 
+  const outputUrl = await page.getByRole('link', { name: 'Download' }).getAttribute('href');
+  expect(outputUrl).toBeTruthy();
+  const decoded = await page.evaluate(async (url) => {
+    const bytes = await (await fetch(url!)).arrayBuffer();
+    const context = new OfflineAudioContext(2, 48000, 48000);
+    const audio = await context.decodeAudioData(bytes);
+    return {
+      duration: audio.duration,
+      channels: audio.numberOfChannels,
+      audible: audio.getChannelData(0).some((sample) => Math.abs(sample) > 0.001),
+    };
+  }, outputUrl);
+  expect(decoded.duration).toBeCloseTo(1, 1);
+  expect(decoded.channels).toBe(2);
+  expect(decoded.audible).toBe(true);
+
   monitor.expectClean();
 });
 
@@ -39,7 +55,7 @@ test('converts a wav file to every browser output format', async ({ page }) => {
     await page.getByRole('button', { name: 'Convert' }).click();
 
     await expect(page.locator('#status')).toHaveText('Ready: 1 output file.', { timeout: 120_000 });
-    await expect(page.locator('#log')).toContainText(/libavutil\s+(?:6[0-9]|[7-9][0-9])\./);
+    await expect(page.locator('#log')).toContainText(/libavutil\s+(?:6[1-9]|[7-9][0-9])\./);
     await expect(page.getByRole('link', { name: 'Download' })).toHaveAttribute(
       'download',
       `tone.${extension}`,

@@ -32,7 +32,13 @@ const OUTPUTS: Record<
   AudioFormat,
   { codec: string; extension: string; mimeType: string; bitrateCapable: boolean; extraArgs?: string[] }
 > = {
-  aac: { codec: 'aac', extension: 'm4a', mimeType: 'audio/mp4', bitrateCapable: true },
+  aac: {
+    codec: 'aac',
+    extension: 'm4a',
+    mimeType: 'audio/mp4',
+    bitrateCapable: true,
+    extraArgs: ['-aac_coder', 'nmr', '-aac_pns', '0'],
+  },
   alac: { codec: 'alac', extension: 'm4a', mimeType: 'audio/mp4', bitrateCapable: false },
   flac: { codec: 'flac', extension: 'flac', mimeType: 'audio/flac', bitrateCapable: false },
   mp3: { codec: 'libmp3lame', extension: 'mp3', mimeType: 'audio/mpeg', bitrateCapable: true },
