@@ -6,7 +6,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/versions.env"
 
-FFMPEG_GIT_REF="${FFMPEG_GIT_REF:-n${FFMPEG_VERSION}}"
 REF_DIR="${FFMPEG_WASM_REF:-/tmp/podhnologic-ffmpegwasm}"
 WORK_DIR="${FFMPEG_BROWSER_CORE_WORK:-$SCRIPT_DIR/work/browser-core}"
 EXPORT_DIR="${FFMPEG_BROWSER_CORE_EXPORT:-$WORK_DIR/export}"
@@ -40,7 +39,7 @@ ffmpeg.wasm wrapper source tree.
 Inputs:
   FFMPEG_WASM_REF             Reference checkout of ffmpeg.wasm
                               default: $REF_DIR
-  FFMPEG_CONTAINER_RUNTIME    podman or docker
+  FFMPEG_CONTAINER_RUNTIME    container (Apple), podman, or docker
 
 Outputs:
   $OUT_DIR/ffmpeg-core.js
@@ -64,8 +63,10 @@ if [[ -z "$RUNTIME" ]]; then
 		RUNTIME=podman
 	elif command -v docker >/dev/null 2>&1; then
 		RUNTIME=docker
+	elif command -v container >/dev/null 2>&1; then
+		RUNTIME=container
 	else
-		die "missing container runtime: set FFMPEG_CONTAINER_RUNTIME, or install podman/docker"
+		die "missing container runtime: install Apple container, podman, or docker"
 	fi
 fi
 
@@ -83,37 +84,40 @@ log "container runtime: $RUNTIME"
 
 rm -rf "$EXPORT_DIR"
 
+build_args=(
+	--build-arg EXTRA_CFLAGS="$EXTRA_CFLAGS"
+	--build-arg EXTRA_LDFLAGS="$EXTRA_LDFLAGS"
+	--build-arg FFMPEG_ST=
+	--build-arg FFMPEG_MT=1
+	--build-arg FFMPEG_VERSION="$FFMPEG_VERSION"
+	--build-arg FFMPEG_TARBALL_URL="$FFMPEG_TARBALL_URL"
+	--build-arg FFMPEG_TARBALL_SHA256="$FFMPEG_TARBALL_SHA256"
+	--build-arg LAME_TARBALL_URL="$LAME_TARBALL_URL"
+	--build-arg LAME_TARBALL_SHA256="$LAME_TARBALL_SHA256"
+	--build-arg ZLIB_TARBALL_URL="$ZLIB_TARBALL_URL"
+	--build-arg ZLIB_TARBALL_SHA256="$ZLIB_TARBALL_SHA256"
+	-f "$DOCKERFILE"
+)
+
 if [[ "$RUNTIME" == "podman" ]]; then
 	"$RUNTIME" build \
 		--tag "$IMAGE_TAG" \
-		--build-arg EXTRA_CFLAGS="$EXTRA_CFLAGS" \
-		--build-arg EXTRA_LDFLAGS="$EXTRA_LDFLAGS" \
-		--build-arg FFMPEG_ST= \
-		--build-arg FFMPEG_MT=1 \
-		--build-arg FFMPEG_GIT_REF="$FFMPEG_GIT_REF" \
-		--build-arg LAME_TARBALL_URL="$LAME_TARBALL_URL" \
-		--build-arg LAME_TARBALL_SHA256="$LAME_TARBALL_SHA256" \
-		--build-arg ZLIB_TARBALL_URL="$ZLIB_TARBALL_URL" \
-		--build-arg ZLIB_TARBALL_SHA256="$ZLIB_TARBALL_SHA256" \
-		-f "$DOCKERFILE" \
+		"${build_args[@]}" \
 		"$REF_DIR"
 
 	container_id="$("$RUNTIME" create "$IMAGE_TAG")"
 	trap '"$RUNTIME" rm -f "$container_id" >/dev/null 2>&1 || true' EXIT
 	"$RUNTIME" cp "$container_id:/dist" "$EXPORT_DIR"
+elif [[ "$RUNTIME" == "container" ]]; then
+	"$RUNTIME" build \
+		--platform linux/amd64 \
+		--output "type=local,dest=$EXPORT_DIR" \
+		"${build_args[@]}" \
+		"$REF_DIR"
 else
 	"$RUNTIME" buildx build \
-		--build-arg EXTRA_CFLAGS="$EXTRA_CFLAGS" \
-		--build-arg EXTRA_LDFLAGS="$EXTRA_LDFLAGS" \
-		--build-arg FFMPEG_ST= \
-		--build-arg FFMPEG_MT=1 \
-		--build-arg FFMPEG_GIT_REF="$FFMPEG_GIT_REF" \
-		--build-arg LAME_TARBALL_URL="$LAME_TARBALL_URL" \
-		--build-arg LAME_TARBALL_SHA256="$LAME_TARBALL_SHA256" \
-		--build-arg ZLIB_TARBALL_URL="$ZLIB_TARBALL_URL" \
-		--build-arg ZLIB_TARBALL_SHA256="$ZLIB_TARBALL_SHA256" \
+		"${build_args[@]}" \
 		-o "$EXPORT_DIR" \
-		-f "$DOCKERFILE" \
 		"$REF_DIR"
 fi
 

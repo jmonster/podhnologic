@@ -325,11 +325,15 @@ func buildFFmpegArgs(inputPath, outputPath string, config Config, metadata *Meta
 }
 
 func getCodecParamsSimple(config Config) []string {
+	return getCodecParamsForPlatform(config, runtime.GOOS)
+}
+
+func getCodecParamsForPlatform(config Config, goos string) []string {
 	var params []string
 
-	// Use aac_at for macOS (best quality), fallback to aac for other platforms
+	// Keep Apple's encoder on macOS; use FFmpeg's NMR encoder elsewhere.
 	aacCodec := "aac"
-	if runtime.GOOS == "darwin" {
+	if goos == "darwin" {
 		aacCodec = "aac_at"
 	}
 
@@ -342,6 +346,13 @@ func getCodecParamsSimple(config Config) []string {
 
 	case "aac":
 		params = []string{"-c:a", aacCodec, "-b:a", "256k", "-c:v", "copy"}
+		if aacCodec == "aac" {
+			params = append(params, "-aac_coder", "nmr")
+			if config.IPod {
+				// Older iPod decoders can produce high-frequency artifacts with PNS.
+				params = append(params, "-aac_pns", "0")
+			}
+		}
 		if config.IPod {
 			params = append(params, "-ar", "44100", "-movflags", "+faststart", "-disposition:a", "0")
 		}

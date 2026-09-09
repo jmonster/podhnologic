@@ -56,6 +56,38 @@ func (h *TestHelper) VerifyMetadataLacksKey(metadata *Metadata, key string) {
 	}
 }
 
+func TestAACEncoderAndIPodCompatibilityByPlatform(t *testing.T) {
+	for _, platform := range []string{"linux", "windows", "darwin"} {
+		for _, ipod := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/ipod=%t", platform, ipod), func(t *testing.T) {
+				args := strings.Join(getCodecParamsForPlatform(Config{Codec: "aac", IPod: ipod}, platform), " ")
+				encoder := "aac"
+				if platform == "darwin" {
+					encoder = "aac_at"
+				}
+				if !strings.Contains(args, "-c:a "+encoder+" -b:a 256k") {
+					t.Fatalf("unexpected AAC encoder/bitrate: %s", args)
+				}
+				if got := strings.Contains(args, "-aac_coder nmr"); got != (platform != "darwin") {
+					t.Fatalf("NMR must be selected only for native AAC: %s", args)
+				}
+				if got := strings.Contains(args, "-aac_pns 0"); got != (ipod && platform != "darwin") {
+					t.Fatalf("PNS must be disabled for native iPod AAC: %s", args)
+				}
+				if got := strings.Contains(args, "-ar 44100 -movflags +faststart -disposition:a 0"); got != ipod {
+					t.Fatalf("unexpected iPod container/sample-rate options: %s", args)
+				}
+			})
+		}
+		for _, codec := range []string{"alac", "flac", "mp3", "opus", "wav"} {
+			args := strings.Join(getCodecParamsForPlatform(Config{Codec: codec, IPod: true}, platform), " ")
+			if strings.Contains(args, "-aac_") {
+				t.Fatalf("AAC-only options applied to %s on %s: %s", codec, platform, args)
+			}
+		}
+	}
+}
+
 // TestCollectAudioFiles tests audio file collection
 func TestCollectAudioFiles(t *testing.T) {
 	helper := NewTestHelper(t)

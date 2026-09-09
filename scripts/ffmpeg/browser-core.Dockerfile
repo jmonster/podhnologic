@@ -5,9 +5,7 @@ ARG EXTRA_CFLAGS
 ARG EXTRA_LDFLAGS
 ARG FFMPEG_ST
 ARG FFMPEG_MT
-ARG FFMPEG_GIT_REF
 ENV INSTALL_DIR=/opt
-ENV FFMPEG_VERSION=$FFMPEG_GIT_REF
 ENV CFLAGS="-I$INSTALL_DIR/include $CFLAGS $EXTRA_CFLAGS -pthread"
 ENV CXXFLAGS="$CFLAGS"
 ENV LDFLAGS="-L$INSTALL_DIR/lib $LDFLAGS $CFLAGS $EXTRA_LDFLAGS"
@@ -40,7 +38,12 @@ COPY build/zlib.sh /src/build.sh
 RUN sed -i 's/make install -j/make install -j2/g; s/make -j/make -j2/g' /src/build.sh && bash -x /src/build.sh
 
 FROM emsdk-base AS ffmpeg-base
-ADD https://github.com/FFmpeg/FFmpeg.git#$FFMPEG_VERSION /src
+ARG FFMPEG_TARBALL_URL
+ARG FFMPEG_TARBALL_SHA256
+RUN curl -fsSL "$FFMPEG_TARBALL_URL" -o /tmp/ffmpeg.tar.gz && \
+      echo "$FFMPEG_TARBALL_SHA256  /tmp/ffmpeg.tar.gz" | sha256sum -c - && \
+      mkdir -p /src && \
+      tar -xf /tmp/ffmpeg.tar.gz -C /src --strip-components=1
 COPY --from=lame-builder $INSTALL_DIR $INSTALL_DIR
 COPY --from=zlib-builder $INSTALL_DIR $INSTALL_DIR
 
@@ -68,6 +71,10 @@ RUN sed -i 's/emmake make -j/emmake make -j2/g' /src/build.sh && bash -x /src/bu
       --enable-zlib
 
 FROM ffmpeg-builder AS ffmpeg-wasm-builder
+ARG FFMPEG_VERSION
+# Commit archives retain an old RELEASE label; report the exact source pin.
+RUN printf '%s\n' "$FFMPEG_VERSION" > FF_VERSION && \
+      emmake make -j2 libavutil/libavutil.a
 COPY src/bind /src/src/bind
 RUN sed -i 's#Module\["_ffmpeg"\](args.length, stringsToPtr(args));#Module["ret"] = Module["_ffmpeg"](args.length, stringsToPtr(args));#' /src/src/bind/ffmpeg/bind.js && \
       cp -R /src/fftools /src/src/fftools8 && \

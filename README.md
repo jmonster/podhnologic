@@ -67,3 +67,10 @@ Settings save to `~/.podhnologic/config.json`.
 | WAV | 16-bit PCM |
 
 podhnologic keeps title, artist, album, date, track, genre, disc, lyrics unless `--no-lyrics` is set, and album art. Other metadata is dropped for iPod compatibility.
+
+AAC uses Apple's AudioToolbox encoder on macOS and FFmpeg's NMR encoder on
+Linux and Windows. With `--ipod`, native AAC disables perceptual noise
+substitution (`-aac_pns 0`) for compatibility with older iPod decoders.
+
+To replace AAC files made with older settings, convert the original lossless
+files into a new output directory. Existing output files are skipped.

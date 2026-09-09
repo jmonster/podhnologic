@@ -217,8 +217,15 @@ ensure_source_tree() {
 	log "fetching $name $version"
 	download_file "$url" "$archive_path" "$sha256"
 	log "extracting $name $version"
-	tar -xf "$archive_path" -C "$source_root"
-	[[ -d "$source_dir" ]] || die "failed to extract $name $version"
+	# Release and commit archives use different top-level directory names.
+	# Publish the source tree only after extraction has completed.
+	local unpack_dir
+	unpack_dir="$(mktemp -d "$source_root/.unpack-$name.XXXXXX")"
+	if ! tar -xf "$archive_path" -C "$unpack_dir" --strip-components=1; then
+		rm -rf "$unpack_dir"
+		die "failed to extract $name $version"
+	fi
+	mv "$unpack_dir" "$source_dir"
 }
 
 target_toolchain() {
@@ -465,6 +472,8 @@ build_ffmpeg() {
 	log "configuring ffmpeg"
 	pushd "$source_dir" >/dev/null
 	make distclean >/dev/null 2>&1 || true
+	# Archive checkouts must not inherit the enclosing Podhnologic Git revision.
+	printf '%s\n' "$FFMPEG_VERSION" > FF_VERSION
 
 	local audio_decoders audio_demuxers audio_encoders audio_parsers cover_art_decoders pcm_adpcm_decoders
 	audio_demuxers="aa,aac,aax,ac3,aiff,ape,asf,au,caf,dsf,dts,eac3,flac,hca,matroska,mov,mp3,mpc,mpc8,ogg,oma,shorten,tak,tta,voc,w64,wav,wv,xwma"

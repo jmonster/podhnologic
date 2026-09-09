@@ -239,6 +239,7 @@ func TestLinkedFFmpegEncodersFromFLAC(t *testing.T) {
 }
 
 type probedStream struct {
+	Profile    string `json:"profile"`
 	CodecName  string `json:"codec_name"`
 	CodecType  string `json:"codec_type"`
 	SampleFmt  string `json:"sample_fmt"`

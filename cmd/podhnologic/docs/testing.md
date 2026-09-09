@@ -18,4 +18,9 @@ make linked-test
 
 This builds the current host target through `scripts/build-linked.sh`, then runs tests with `linkedffmpeg_cgo linkedffmpeg_hidden`.
 
+The linked suite converts FLAC with lyrics larger than the OS argument limits,
+checks both preservation and `--no-lyrics`, and encodes/decodes native NMR AAC
+with the iPod settings even on macOS. Ordinary Go tests check Linux, Windows,
+and macOS option selection independently of the host platform.
+
 For an end-to-end smoke test, create a small input file with a system FFmpeg and run the linked podhnologic binary against it. The output should probe as the requested codec and preserve the allowed metadata.
